@@ -1,0 +1,67 @@
+import React, { Suspense, lazy } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { DashboardLayout } from '../layouts/DashboardLayout';
+import { PublicLayout } from '../layouts/PublicLayout';
+import { PrivateRoute } from './PrivateRoute';
+// Lazy load pages
+const Login = lazy(() => import('../pages/Login'));
+const Register = lazy(() => import('../pages/Register'));
+const Dashboard = lazy(() => import('../pages/Dashboard'));
+const Orders = lazy(() => import('../pages/Orders'));
+const OrderDetail = lazy(() => import('../pages/OrderDetail'));
+const Categories = lazy(() => import('../pages/Categories'));
+const Products = lazy(() => import('../pages/Products'));
+const Tables = lazy(() => import('../pages/Tables'));
+const WaiterCalls = lazy(() => import('../pages/WaiterCalls'));
+const Users = lazy(() => import('../pages/Users'));
+const Reports = lazy(() => import('../pages/Reports'));
+const Settings = lazy(() => import('../pages/Settings'));
+const PublicMenu = lazy(() => import('../pages/PublicMenu'));
+const AdminOrganizations = lazy(() => import('../pages/AdminOrganizations'));
+// Loading fallback
+const PageLoader = () =>
+<div className="flex-1 flex items-center justify-center min-h-[50vh]">
+    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+  </div>;
+
+export function AppRoutes() {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* Public Menu Route */}
+        <Route element={<PublicLayout />}>
+          <Route path="/cardapio/:tableToken" element={<PublicMenu />} />
+        </Route>
+
+        {/* Protected Dashboard Routes */}
+        <Route
+          path="/"
+          element={
+          <PrivateRoute>
+              <DashboardLayout />
+            </PrivateRoute>
+          }>
+          
+          <Route index element={<Dashboard />} />
+          <Route path="orders" element={<Orders />} />
+          <Route path="orders/:id" element={<OrderDetail />} />
+          <Route path="menu/categories" element={<Categories />} />
+          <Route path="menu/products" element={<Products />} />
+          <Route path="tables" element={<Tables />} />
+          <Route path="waiter-calls" element={<WaiterCalls />} />
+          <Route path="users" element={<Users />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="admin/organizations" element={<AdminOrganizations />} />
+        </Route>
+
+        {/* Catch all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>);
+
+}
