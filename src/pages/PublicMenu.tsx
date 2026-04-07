@@ -348,7 +348,7 @@ export default function PublicMenu() {
           {menu.categories.map((category) =>
           <button
             key={category.id}
-            onClick={() => scrollToCategory(category.id)}
+            onClick={() => setActiveCategory(category.id)}
             className={`
                 whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-colors
                 ${activeCategory === category.id ? 'bg-primary text-white' : 'bg-gray-100 text-text-secondary hover:bg-gray-200'}
@@ -362,12 +362,14 @@ export default function PublicMenu() {
 
       {/* Menu Content */}
       <div className="p-4 pb-32">
-        {menu.categories.map((category) =>
+        {menu.categories
+        .filter((category) => category.id === activeCategory)
+        .map((category) =>
         <div
           key={category.id}
           id={`category-${category.id}`}
           className="mb-8 pt-4">
-          
+
             <h2 className="text-xl font-bold text-text-primary mb-4">
               {category.name}
             </h2>

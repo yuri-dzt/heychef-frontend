@@ -25,14 +25,8 @@ import { Modal } from '../components/Modal';
 import { StatusBadge } from '../components/StatusBadge';
 import { formatCurrency, shortOrderId, getRelativeTime } from '../utils/format';
 import { ordersApi } from '../api/orders';
-import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../hooks/useNotification';
 import type { Order, OrderStatus } from '../types';
-
-const API_URL =
-  typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
-    ? import.meta.env.VITE_API_URL
-    : 'http://localhost:3333';
 
 const COLUMNS: {
   id: OrderStatus;
@@ -49,9 +43,8 @@ const COLUMNS: {
 const STATUS_ORDER: OrderStatus[] = ['RECEIVED', 'PREPARING', 'READY', 'DELIVERED'];
 
 export default function Orders() {
-  const { token } = useAuth();
   const queryClient = useQueryClient();
-  const { permission, requestPermission, notify } = useNotification();
+  const { permission, requestPermission } = useNotification();
   const [filterTable, setFilterTable] = useState('all');
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
@@ -116,49 +109,6 @@ export default function Orders() {
       toast.error('Erro ao cancelar pedido');
     },
   });
-
-  // SSE - real-time updates
-  useEffect(() => {
-    if (!token) return;
-    const es = new EventSource(`${API_URL}/events/orders?token=${token}`);
-
-    const refetchOrders = () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-    };
-
-    es.addEventListener('new-order', (e) => {
-      const data = JSON.parse(e.data);
-      const desc = data.customerName || 'Pedido recebido';
-      toast.success('Novo pedido!', { description: desc });
-      notify('🍽️ Novo Pedido!', { body: desc, tag: 'new-order-' + data.id });
-      refetchOrders();
-    });
-
-    es.addEventListener('order-status-change', (e) => {
-      const data = JSON.parse(e.data);
-      // Notify when new items are added to existing order
-      if (data.status === 'RECEIVED' || data.status === 'PREPARING') {
-        toast.info('Pedido atualizado!', { description: data.customerName || 'Novos itens adicionados' });
-        notify('🍽️ Pedido Atualizado!', { body: data.customerName || 'Novos itens adicionados', tag: 'update-' + data.id });
-      }
-      refetchOrders();
-    });
-
-    es.addEventListener('call-waiter', (e) => {
-      const data = JSON.parse(e.data);
-      const tableName = data.tableName || 'Mesa';
-      toast.success('Chamado de garçom!', { description: tableName });
-      notify('🔔 Chamado de Garçom!', { body: tableName, tag: 'call-' + data.id });
-      queryClient.invalidateQueries({ queryKey: ['waiter-calls'] });
-    });
-
-    es.addEventListener('call-waiter-resolved', () => {
-      queryClient.invalidateQueries({ queryKey: ['waiter-calls'] });
-    });
-
-    es.onerror = () => es.close();
-    return () => es.close();
-  }, [token, queryClient]);
 
   const handleAdvanceStatus = (orderId: string, nextStatus: OrderStatus) => {
     updateStatusMutation.mutate({ id: orderId, status: nextStatus });

@@ -58,6 +58,31 @@ export default function Reports() {
       revenue: 0
     }
   );
+  const exportCSV = () => {
+    if (reports.length === 0) {
+      toast.error('Nenhum dado para exportar');
+      return;
+    }
+
+    const header = 'Data,Pedidos,Receita (R$)\n';
+    const rows = reports.map((r) => {
+      const [y, m, d] = r.date.split('-');
+      const date = `${d}/${m}/${y}`;
+      const revenue = (r.totalRevenueCents / 100).toFixed(2).replace('.', ',');
+      return `${date},${r.totalOrders},${revenue}`;
+    }).join('\n');
+
+    const csv = header + rows;
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `relatorio-${startDate}-${endDate}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('Relatório exportado');
+  };
+
   const columns = [
   {
     header: 'Data',
@@ -96,7 +121,8 @@ export default function Reports() {
           </Button>
           <Button
             variant="secondary"
-            leftIcon={<DownloadIcon className="w-4 h-4" />}>
+            leftIcon={<DownloadIcon className="w-4 h-4" />}
+            onClick={exportCSV}>
             Exportar CSV
           </Button>
         </div>

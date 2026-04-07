@@ -6,6 +6,7 @@ import {
   RefreshCwIcon,
   ChevronDownIcon,
   ChevronUpIcon,
+  PlusIcon,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -15,7 +16,11 @@ import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { Modal } from '../components/Modal';
+import { Input } from '../components/Input';
+import { Select } from '../components/Select';
 import { organizationsApi } from '../api/organizations';
+import { plansApi, type Plan } from '../api/plans';
 import { formatCurrency } from '../utils/format';
 import type { Organization } from '../types';
 
@@ -35,10 +40,44 @@ export default function AdminOrganizations() {
   const queryClient = useQueryClient();
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null);
   const [renewOrg, setRenewOrg] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: '',
+    adminName: '',
+    adminEmail: '',
+    adminPassword: '',
+    planId: '',
+  });
 
   const { data: organizations = [], isLoading } = useQuery({
     queryKey: ['organizations'],
     queryFn: organizationsApi.list,
+  });
+
+  const { data: plans = [] } = useQuery({
+    queryKey: ['plans'],
+    queryFn: plansApi.list,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: organizationsApi.create,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+      toast.success('Estabelecimento criado');
+      setIsCreateOpen(false);
+      setCreateForm({ name: '', adminName: '', adminEmail: '', adminPassword: '', planId: '' });
+    },
+    onError: () => toast.error('Erro ao criar estabelecimento'),
+  });
+
+  const assignPlanMutation = useMutation({
+    mutationFn: ({ orgId, planId }: { orgId: string; planId: string }) =>
+      plansApi.assignToOrg(orgId, planId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+      toast.success('Plano atribuído');
+    },
+    onError: () => toast.error('Erro ao atribuir plano'),
   });
 
   const renewMutation = useMutation({
@@ -69,10 +108,9 @@ export default function AdminOrganizations() {
       <Header
         title="Estabelecimentos"
         actions={
-          <div className="flex items-center gap-2 text-sm text-text-secondary bg-white px-3 py-2 rounded-lg border border-border">
-            <BuildingIcon className="w-4 h-4" />
-            {organizations.length} {organizations.length === 1 ? 'estabelecimento' : 'estabelecimentos'}
-          </div>
+          <Button onClick={() => setIsCreateOpen(true)} leftIcon={<PlusIcon className="w-4 h-4" />}>
+            Novo Estabelecimento
+          </Button>
         }
       />
 
@@ -98,11 +136,14 @@ export default function AdminOrganizations() {
                     <h3 className="font-bold text-text-primary text-lg">{org.name}</h3>
                     <div className="flex items-center gap-3 mt-1">
                       {isExpired ? (
-                        <Badge variant="danger">Plano expirado</Badge>
+                        <Badge variant="danger">Expirado</Badge>
                       ) : isExpiring ? (
                         <Badge variant="warning">Expira em {days} dias</Badge>
                       ) : (
-                        <Badge variant="success">Plano ativo</Badge>
+                        <Badge variant="success">Ativo</Badge>
+                      )}
+                      {(org as any).planName && (
+                        <Badge variant="primary">{(org as any).planName}</Badge>
                       )}
                       <span className="text-xs text-text-muted">
                         Criado em {formatDate(org.createdAt)}
@@ -134,11 +175,17 @@ export default function AdminOrganizations() {
               {/* Expanded details */}
               {isExpanded && (
                 <div className="border-t border-border bg-gray-50 p-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="bg-white rounded-lg p-4 border border-border">
-                      <p className="text-xs text-text-muted font-medium mb-1">ID da Organização</p>
-                      <p className="text-sm text-text-primary font-mono break-all">{org.id}</p>
-                    </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {(org as any).owner && (
+                      <div className="bg-white rounded-lg p-4 border border-border">
+                        <div className="flex items-center gap-2 mb-1">
+                          <UsersIcon className="w-3.5 h-3.5 text-text-muted" />
+                          <p className="text-xs text-text-muted font-medium">Proprietário</p>
+                        </div>
+                        <p className="text-sm font-medium text-text-primary">{(org as any).owner.name}</p>
+                        <p className="text-xs text-text-muted">{(org as any).owner.email}</p>
+                      </div>
+                    )}
                     <div className="bg-white rounded-lg p-4 border border-border">
                       <div className="flex items-center gap-2 mb-1">
                         <CalendarIcon className="w-3.5 h-3.5 text-text-muted" />
@@ -160,12 +207,29 @@ export default function AdminOrganizations() {
                     </div>
                   </div>
 
-                  <div className="mt-4 p-3 bg-white rounded-lg border border-border">
-                    <p className="text-xs text-text-muted mb-1">
-                      Os usuários deste estabelecimento usam este ID para fazer login.
-                      Compartilhe com o administrador do restaurante.
-                    </p>
+                  <div className="mt-4 bg-white rounded-lg border border-border p-4">
+                    <p className="text-sm font-medium text-text-primary mb-2">Plano</p>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <Select
+                          options={[
+                            { value: '', label: 'Sem plano' },
+                            ...plans.filter(p => p.active).map(p => ({
+                              value: p.id,
+                              label: `${p.name} — ${p.priceCents === 0 ? 'Grátis' : formatCurrency(p.priceCents) + '/mês'}`,
+                            })),
+                          ]}
+                          value={(org as any).planId || ''}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              assignPlanMutation.mutate({ orgId: org.id, planId: e.target.value });
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
+
                 </div>
               )}
             </Card>
@@ -184,6 +248,87 @@ export default function AdminOrganizations() {
           </div>
         )}
       </div>
+
+      {/* Create Organization Modal */}
+      <Modal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        title="Novo Estabelecimento"
+        maxWidth="lg"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setIsCreateOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                if (!createForm.name || !createForm.adminName || !createForm.adminEmail || !createForm.adminPassword) {
+                  toast.error('Preencha todos os campos obrigatórios');
+                  return;
+                }
+                createMutation.mutate({
+                  name: createForm.name,
+                  adminName: createForm.adminName,
+                  adminEmail: createForm.adminEmail,
+                  adminPassword: createForm.adminPassword,
+                  planId: createForm.planId || undefined,
+                });
+              }}
+              disabled={createMutation.isPending}
+            >
+              {createMutation.isPending ? 'Criando...' : 'Criar Estabelecimento'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="Nome do Estabelecimento *"
+            value={createForm.name}
+            onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
+            placeholder="Ex: Hamburgueria do João"
+          />
+
+          <div className="pt-2 border-t border-border">
+            <p className="text-sm font-medium text-text-primary mb-3">Usuário Administrador</p>
+            <div className="space-y-4">
+              <Input
+                label="Nome *"
+                value={createForm.adminName}
+                onChange={(e) => setCreateForm((p) => ({ ...p, adminName: e.target.value }))}
+                placeholder="Nome do administrador"
+              />
+              <Input
+                label="Email *"
+                type="email"
+                value={createForm.adminEmail}
+                onChange={(e) => setCreateForm((p) => ({ ...p, adminEmail: e.target.value }))}
+                placeholder="email@restaurante.com"
+              />
+              <Input
+                label="Senha *"
+                type="password"
+                value={createForm.adminPassword}
+                onChange={(e) => setCreateForm((p) => ({ ...p, adminPassword: e.target.value }))}
+                placeholder="Senha inicial"
+              />
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-border">
+            <Select
+              label="Plano"
+              options={[
+                { value: '', label: 'Sem plano' },
+                ...plans.filter((p) => p.active).map((p) => ({
+                  value: p.id,
+                  label: `${p.name} — ${p.priceCents === 0 ? 'Grátis' : formatCurrency(p.priceCents) + '/mês'}`,
+                })),
+              ]}
+              value={createForm.planId}
+              onChange={(e) => setCreateForm((p) => ({ ...p, planId: e.target.value }))}
+            />
+          </div>
+        </div>
+      </Modal>
 
       <ConfirmDialog
         isOpen={!!renewOrg}

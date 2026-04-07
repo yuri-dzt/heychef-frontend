@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { BellIcon, CheckCircleIcon } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { useAuth } from '../contexts/AuthContext';
 import { PageContainer } from '../components/PageContainer';
 import { Header } from '../components/Header';
 import { Button } from '../components/Button';
@@ -10,17 +9,9 @@ import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { getRelativeTime } from '../utils/format';
 import { waiterCallsApi } from '../api/waiter-calls';
-import { useNotification } from '../hooks/useNotification';
-
-const API_URL =
-  typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
-    ? import.meta.env.VITE_API_URL
-    : 'http://localhost:5000';
 
 export default function WaiterCalls() {
-  const { token } = useAuth();
   const queryClient = useQueryClient();
-  const { notify } = useNotification();
   const [filter, setFilter] = useState<'ALL' | 'OPEN' | 'RESOLVED'>('OPEN');
 
   const { data: calls = [] } = useQuery({
@@ -28,27 +19,6 @@ export default function WaiterCalls() {
     queryFn: () => waiterCallsApi.list(),
     refetchInterval: 10000,
   });
-
-  // SSE - real-time updates
-  useEffect(() => {
-    if (!token) return;
-    const es = new EventSource(`${API_URL}/events/orders?token=${token}`);
-
-    es.addEventListener('call-waiter', (e) => {
-      const data = JSON.parse(e.data);
-      const tableName = data.tableName || 'Mesa';
-      toast.success('Chamado de garçom!', { description: tableName });
-      notify('🔔 Chamado de Garçom!', { body: `${tableName} precisa de atendimento`, tag: 'call-' + data.id });
-      queryClient.invalidateQueries({ queryKey: ['waiter-calls'] });
-    });
-
-    es.addEventListener('call-waiter-resolved', () => {
-      queryClient.invalidateQueries({ queryKey: ['waiter-calls'] });
-    });
-
-    es.onerror = () => es.close();
-    return () => es.close();
-  }, [token, queryClient]);
 
   const resolveMutation = useMutation({
     mutationFn: (id: string) => waiterCallsApi.resolve(id),

@@ -8,16 +8,20 @@ export interface Organization {
 }
 
 // User
-export type UserRole = 'SUPER_ADMIN' | 'SUPPORT' | 'ADMIN' | 'USER';
+export type UserRole = 'SUPPORT' | 'ADMIN' | 'USER';
+export type UserType = 'admin' | 'user';
 
 export interface User {
   id: string;
-  organizationId: string;
+  organizationId?: string;
   name: string;
   email: string;
-  role: UserRole;
-  createdAt: number;
+  role?: UserRole;
+  type: UserType;
+  createdAt?: number;
   updatedAt?: number;
+  permissions?: Record<string, string[]>;
+  onboardingComplete?: boolean;
 }
 
 // Table
@@ -161,6 +165,7 @@ export interface RegisterRequest {
 
 export interface AuthResponse {
   token: string;
+  refreshToken: string;
   user: User;
 }
 

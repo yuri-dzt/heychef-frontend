@@ -18,6 +18,10 @@ const Reports = lazy(() => import('../pages/Reports'));
 const Settings = lazy(() => import('../pages/Settings'));
 const PublicMenu = lazy(() => import('../pages/PublicMenu'));
 const AdminOrganizations = lazy(() => import('../pages/AdminOrganizations'));
+const AdminPlans = lazy(() => import('../pages/AdminPlans'));
+const Onboarding = lazy(() => import('../pages/Onboarding'));
+const AuditLog = lazy(() => import('../pages/AuditLog'));
+const Sessions = lazy(() => import('../pages/Sessions'));
 // Loading fallback
 const PageLoader = () =>
 <div className="flex-1 flex items-center justify-center min-h-[50vh]">
@@ -37,6 +41,16 @@ export function AppRoutes() {
           <Route path="/cardapio/:tableToken" element={<PublicMenu />} />
         </Route>
 
+        {/* Onboarding — fullscreen, no sidebar */}
+        <Route
+          path="/onboarding"
+          element={
+            <PrivateRoute>
+              <Onboarding />
+            </PrivateRoute>
+          }
+        />
+
         {/* Protected Dashboard Routes */}
         <Route
           path="/"
@@ -45,7 +59,7 @@ export function AppRoutes() {
               <DashboardLayout />
             </PrivateRoute>
           }>
-          
+
           <Route index element={<Dashboard />} />
           <Route path="orders" element={<Orders />} />
           <Route path="orders/:id" element={<OrderDetail />} />
@@ -56,7 +70,10 @@ export function AppRoutes() {
           <Route path="users" element={<Users />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="audit" element={<AuditLog />} />
+          <Route path="sessions" element={<Sessions />} />
           <Route path="admin/organizations" element={<AdminOrganizations />} />
+          <Route path="admin/plans" element={<AdminPlans />} />
         </Route>
 
         {/* Catch all */}

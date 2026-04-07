@@ -1,7 +1,10 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar';
+import { useSSE } from '../hooks/useSSE';
+
 export function DashboardLayout() {
+  useSSE(); // Global SSE connection for real-time updates
   return (
     <div className="flex min-h-screen bg-background">
       <Sidebar />

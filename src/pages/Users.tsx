@@ -68,7 +68,7 @@ export default function Users() {
         name: user.name,
         email: user.email,
         password: '',
-        role: user.role
+        role: user.role || 'USER'
       });
     } else {
       setEditingUser(null);
@@ -115,8 +115,6 @@ export default function Users() {
   };
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
-      case 'SUPER_ADMIN':
-        return <Badge variant="danger">Super Admin</Badge>;
       case 'ADMIN':
         return <Badge variant="primary">Admin</Badge>;
       case 'SUPPORT':
@@ -139,20 +137,18 @@ export default function Users() {
   },
   {
     header: 'Função',
-    cell: (user: User) => getRoleBadge(user.role)
+    cell: (user: User) => getRoleBadge(user.role || 'USER')
   },
   {
     header: 'Criado em',
-    cell: (user: User) => formatDate(user.createdAt)
+    cell: (user: User) => formatDate(user.createdAt!)
   },
   {
     header: 'Ações',
     className: 'text-right',
     cell: (user: User) => {
       // Prevent editing self or higher roles if not super admin
-      const canEdit =
-      currentUser?.role === 'SUPER_ADMIN' ||
-      currentUser?.role === 'ADMIN' && user.role !== 'SUPER_ADMIN';
+      const canEdit = currentUser?.role === 'ADMIN';
       if (!canEdit) return null;
       return (
         <div className="flex justify-end gap-2">

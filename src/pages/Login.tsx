@@ -103,9 +103,6 @@ export default function Login() {
           </Link>
         </p>
 
-        <div className="mt-8 text-center text-xs text-text-muted">
-          <p>Dica: Use qualquer email/senha para testar o protótipo</p>
-        </div>
       </div>
     </div>);
 

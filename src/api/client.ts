@@ -33,12 +33,37 @@ apiClient.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('heychef_token');
-      localStorage.removeItem('heychef_user');
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      const url = error.config?.url || '';
+      const isLoginAttempt = url.includes('/auth/login') || url.includes('/admin/auth/login');
+      const isRefreshAttempt = url.includes('/auth/refresh');
+
+      if (!isLoginAttempt && !isRefreshAttempt) {
+        // Try to refresh the access token
+        const refreshToken = localStorage.getItem('heychef_refresh_token');
+        if (refreshToken) {
+          try {
+            const refreshResponse = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+            const newToken = refreshResponse.data?.data?.token || refreshResponse.data?.token;
+            if (newToken) {
+              localStorage.setItem('heychef_token', newToken);
+              // Retry original request with new token
+              error.config.headers.Authorization = `Bearer ${newToken}`;
+              return apiClient(error.config);
+            }
+          } catch {
+            // Refresh failed, fall through to logout
+          }
+        }
+
+        localStorage.removeItem('heychef_token');
+        localStorage.removeItem('heychef_user');
+        localStorage.removeItem('heychef_user_type');
+        localStorage.removeItem('heychef_refresh_token');
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

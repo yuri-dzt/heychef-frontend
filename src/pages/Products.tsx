@@ -9,6 +9,7 @@ import {
 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { ImageUpload } from '../components/ImageUpload';
 import { productsApi } from '../api/products';
 import { categoriesApi } from '../api/categories';
 import { addonGroupsApi } from '../api/addon-groups';
@@ -475,16 +476,11 @@ export default function Products() {
 
           </div>
 
-          <Input
-            label="URL da Imagem (opcional)"
+          <ImageUpload
+            label="Imagem (opcional)"
             value={formData.imageUrl}
-            onChange={(e) =>
-            setFormData({
-              ...formData,
-              imageUrl: e.target.value
-            })
-            }
-            placeholder="https://exemplo.com/imagem.jpg" />
+            onChange={(url) => setFormData({ ...formData, imageUrl: url })}
+          />
 
 
           <label className="flex items-center gap-2 cursor-pointer mt-2">
