@@ -116,6 +116,7 @@ export interface OrderItem {
   quantity: number;
   unitPriceCents: number;
   totalPriceCents: number;
+  notes?: string;
   addons?: OrderItemAddon[];
 }
 
@@ -198,6 +199,8 @@ export interface CartItem {
   product: PublicProduct;
   quantity: number;
   selectedAddons: SelectedAddon[];
+  removedIngredients: string[];
+  notes?: string;
   totalCents: number;
   cartItemId: string;
 }
@@ -221,6 +224,7 @@ export interface CreateOrderItemRequest {
   productId: string;
   quantity: number;
   addons?: {addonItemId: string;}[];
+  notes?: string;
 }
 
 // API Pagination / Responses

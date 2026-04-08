@@ -48,7 +48,7 @@ export default function Orders() {
   const [filterTable, setFilterTable] = useState('all');
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
-  const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const [detailOrderId, setDetailOrderId] = useState<string | null>(null);
 
   // Scroll arrows state
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -86,6 +86,9 @@ export default function Orders() {
 
   // Recheck arrows when orders change
   useEffect(() => { checkScroll(); }, [orders, checkScroll]);
+
+  // Derive detail order from live data
+  const detailOrder = detailOrderId ? orders.find(o => o.id === detailOrderId) || null : null;
 
   const updateStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: OrderStatus }) =>
@@ -277,7 +280,7 @@ export default function Orders() {
                                 >
                                   <div
                                     className="cursor-pointer"
-                                    onClick={() => setDetailOrder(order)}
+                                    onClick={() => setDetailOrderId(order.id)}
                                   >
                                     <div className="flex items-start justify-between mb-2">
                                       <div>
@@ -360,7 +363,7 @@ export default function Orders() {
       {/* Order Detail Modal */}
       <Modal
         isOpen={!!detailOrder}
-        onClose={() => setDetailOrder(null)}
+        onClose={() => setDetailOrderId(null)}
         title={`Pedido ${detailOrder ? shortOrderId(detailOrder.id) : ''}`}
         maxWidth="md"
       >
@@ -420,9 +423,6 @@ export default function Orders() {
                               try {
                                 await ordersApi.updateItemStatus((item as any).id, cfg.next);
                                 queryClient.invalidateQueries({ queryKey: ['orders'] });
-                                // Refresh detail with updated data
-                                const updated = orders.find(o => o.id === detailOrder.id);
-                                if (updated) setDetailOrder({...updated});
                                 toast.success(`${item.productName}: ${cfg.nextLabel}`);
                               } catch {
                                 toast.error('Erro ao atualizar item');

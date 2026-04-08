@@ -22,6 +22,7 @@ const AdminPlans = lazy(() => import('../pages/AdminPlans'));
 const Onboarding = lazy(() => import('../pages/Onboarding'));
 const AuditLog = lazy(() => import('../pages/AuditLog'));
 const Sessions = lazy(() => import('../pages/Sessions'));
+const Addons = lazy(() => import('../pages/Addons'));
 // Loading fallback
 const PageLoader = () =>
 <div className="flex-1 flex items-center justify-center min-h-[50vh]">
@@ -65,6 +66,7 @@ export function AppRoutes() {
           <Route path="orders/:id" element={<OrderDetail />} />
           <Route path="menu/categories" element={<Categories />} />
           <Route path="menu/products" element={<Products />} />
+          <Route path="menu/addons" element={<Addons />} />
           <Route path="tables" element={<Tables />} />
           <Route path="waiter-calls" element={<WaiterCalls />} />
           <Route path="users" element={<Users />} />

@@ -5,15 +5,16 @@ import {
   SearchIcon,
   FilterIcon,
   Edit2Icon,
-  Trash2Icon } from
+  Trash2Icon,
+  ExternalLinkIcon } from
 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { ImageUpload } from '../components/ImageUpload';
 import { productsApi } from '../api/products';
 import { categoriesApi } from '../api/categories';
-import { addonGroupsApi } from '../api/addon-groups';
-import { addonItemsApi } from '../api/addon-items';
+import { addonGroupsGlobalApi } from '../api/addon-groups-global';
 import { PageContainer } from '../components/PageContainer';
 import { Header } from '../components/Header';
 import { Button } from '../components/Button';
@@ -26,10 +27,11 @@ import { MoneyInput } from '../components/MoneyInput';
 import { IngredientsInput } from '../components/IngredientsInput';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { formatCurrency } from '../utils/format';
-import type { Product, Category, ProductAddonGroup } from '../types';
+import type { Product, Category } from '../types';
 
 export default function Products() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: products = [], isLoading: isLoadingProducts } = useQuery({
     queryKey: ['products'],
@@ -39,6 +41,11 @@ export default function Products() {
   const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
     queryKey: ['categories'],
     queryFn: categoriesApi.list,
+  });
+
+  const { data: globalAddonGroups = [] } = useQuery({
+    queryKey: ['addon-groups'],
+    queryFn: addonGroupsGlobalApi.list,
   });
 
   const createMutation = useMutation({
@@ -77,57 +84,31 @@ export default function Products() {
     },
   });
 
-  // Addon Group mutations
-  const createGroupMutation = useMutation({
-    mutationFn: addonGroupsApi.create,
+  // Addon link/unlink mutations
+  const linkAddonMutation = useMutation({
+    mutationFn: ({ groupId, productId }: { groupId: string; productId: string }) =>
+      addonGroupsGlobalApi.linkToProduct(groupId, productId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success('Grupo criado');
-      setShowNewGroupForm(false);
-      setNewGroupData({ name: '', minSelect: 0, maxSelect: 3 });
+      queryClient.invalidateQueries({ queryKey: ['addon-groups'] });
+      toast.success('Grupo vinculado');
     },
-    onError: () => { toast.error('Erro ao criar grupo'); },
+    onError: () => {
+      toast.error('Erro ao vincular grupo');
+    },
   });
 
-  const updateGroupMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof addonGroupsApi.update>[1] }) =>
-      addonGroupsApi.update(id, data),
+  const unlinkAddonMutation = useMutation({
+    mutationFn: ({ groupId, productId }: { groupId: string; productId: string }) =>
+      addonGroupsGlobalApi.unlinkFromProduct(groupId, productId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success('Grupo atualizado');
-      setEditingGroupId(null);
+      queryClient.invalidateQueries({ queryKey: ['addon-groups'] });
+      toast.success('Grupo desvinculado');
     },
-    onError: () => { toast.error('Erro ao atualizar grupo'); },
-  });
-
-  const deleteGroupMutation = useMutation({
-    mutationFn: addonGroupsApi.delete,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success('Grupo excluído');
+    onError: () => {
+      toast.error('Erro ao desvincular grupo');
     },
-    onError: () => { toast.error('Erro ao excluir grupo'); },
-  });
-
-  // Addon Item mutations
-  const createItemMutation = useMutation({
-    mutationFn: addonItemsApi.create,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success('Item adicionado');
-      setAddingItemToGroupId(null);
-      setNewItemData({ name: '', priceCents: 0 });
-    },
-    onError: () => { toast.error('Erro ao adicionar item'); },
-  });
-
-  const deleteItemMutation = useMutation({
-    mutationFn: addonItemsApi.delete,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      toast.success('Item excluído');
-    },
-    onError: () => { toast.error('Erro ao excluir item'); },
   });
 
   const [filterCategory, setFilterCategory] = useState('all');
@@ -151,17 +132,6 @@ export default function Products() {
   const [isAddonModalOpen, setIsAddonModalOpen] = useState(false);
   const [selectedProductForAddon, setSelectedProductForAddon] =
   useState<Product | null>(null);
-  // Inline form states for addon groups / items
-  const [showNewGroupForm, setShowNewGroupForm] = useState(false);
-  const [newGroupData, setNewGroupData] = useState({ name: '', minSelect: 0, maxSelect: 3 });
-  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-  const [editGroupData, setEditGroupData] = useState({ name: '', minSelect: 0, maxSelect: 3 });
-  const [addingItemToGroupId, setAddingItemToGroupId] = useState<string | null>(null);
-  const [newItemData, setNewItemData] = useState({ name: '', priceCents: 0 });
-  const [deleteGroupModalOpen, setDeleteGroupModalOpen] = useState(false);
-  const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
-  const [deleteItemModalOpen, setDeleteItemModalOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
 
   const handleOpenProductModal = (product?: Product) => {
     if (product) {
@@ -238,6 +208,20 @@ export default function Products() {
   const currentAddonProduct = selectedProductForAddon
     ? products.find((p) => p.id === selectedProductForAddon.id) || selectedProductForAddon
     : null;
+
+  const isGroupLinked = (groupId: string): boolean => {
+    if (!currentAddonProduct?.addonGroups) return false;
+    return currentAddonProduct.addonGroups.some((g) => g.id === groupId);
+  };
+
+  const handleToggleAddonGroup = (groupId: string) => {
+    if (!currentAddonProduct) return;
+    if (isGroupLinked(groupId)) {
+      unlinkAddonMutation.mutate({ groupId, productId: currentAddonProduct.id });
+    } else {
+      linkAddonMutation.mutate({ groupId, productId: currentAddonProduct.id });
+    }
+  };
 
   const filteredProducts = products.filter((p) => {
     const matchesCategory =
@@ -519,9 +503,6 @@ export default function Products() {
         isOpen={isAddonModalOpen}
         onClose={() => {
           setIsAddonModalOpen(false);
-          setShowNewGroupForm(false);
-          setEditingGroupId(null);
-          setAddingItemToGroupId(null);
         }}
         title={`Adicionais: ${currentAddonProduct?.name}`}
         maxWidth="xl">
@@ -529,224 +510,74 @@ export default function Products() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <p className="text-sm text-text-secondary">
-              Configure grupos de opções (ex: Escolha seu molho, Adicionais
-              extras)
+              Selecione os grupos de adicionais disponíveis para este produto.
             </p>
-            <Button
-              size="sm"
-              leftIcon={<PlusIcon className="w-4 h-4" />}
+            <button
               onClick={() => {
-                setShowNewGroupForm(true);
-                setNewGroupData({ name: '', minSelect: 0, maxSelect: 3 });
-              }}>
-              Novo Grupo
-            </Button>
+                setIsAddonModalOpen(false);
+                navigate('/menu/addons');
+              }}
+              className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary-hover"
+            >
+              <ExternalLinkIcon className="w-4 h-4" />
+              Gerenciar Adicionais
+            </button>
           </div>
 
-          {/* Inline form for new group */}
-          {showNewGroupForm && (
-            <Card className="p-4 bg-blue-50 border-blue-200">
-              <h4 className="font-bold text-text-primary mb-3">Novo Grupo</h4>
-              <div className="space-y-3">
-                <Input
-                  label="Nome do grupo *"
-                  value={newGroupData.name}
-                  onChange={(e) => setNewGroupData({ ...newGroupData, name: e.target.value })}
-                  placeholder="Ex: Escolha seu molho"
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    label="Mínimo"
-                    type="number"
-                    value={String(newGroupData.minSelect)}
-                    onChange={(e) => setNewGroupData({ ...newGroupData, minSelect: Number(e.target.value) })}
-                  />
-                  <Input
-                    label="Máximo"
-                    type="number"
-                    value={String(newGroupData.maxSelect)}
-                    onChange={(e) => setNewGroupData({ ...newGroupData, maxSelect: Number(e.target.value) })}
-                  />
-                </div>
-                <div className="flex gap-2 justify-end">
-                  <Button variant="ghost" size="sm" onClick={() => setShowNewGroupForm(false)}>
-                    Cancelar
-                  </Button>
-                  <Button
-                    size="sm"
-                    disabled={createGroupMutation.isPending || !newGroupData.name}
-                    onClick={() => {
-                      if (!currentAddonProduct) return;
-                      createGroupMutation.mutate({
-                        productId: currentAddonProduct.id,
-                        name: newGroupData.name,
-                        minSelect: newGroupData.minSelect,
-                        maxSelect: newGroupData.maxSelect,
-                      });
-                    }}>
-                    {createGroupMutation.isPending ? 'Salvando...' : 'Salvar Grupo'}
-                  </Button>
-                </div>
-              </div>
-            </Card>
+          {globalAddonGroups.length === 0 && (
+            <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
+              <p className="text-text-muted text-sm">
+                Nenhum grupo de adicionais cadastrado.
+              </p>
+              <button
+                onClick={() => {
+                  setIsAddonModalOpen(false);
+                  navigate('/menu/addons');
+                }}
+                className="text-sm font-medium text-primary hover:text-primary-hover mt-2 inline-block"
+              >
+                Criar grupos de adicionais
+              </button>
+            </div>
           )}
 
-          {currentAddonProduct?.addonGroups?.map((group) =>
-          <Card key={group.id} className="p-4 bg-gray-50 border-dashed">
-              {editingGroupId === group.id ? (
-                /* Inline edit form for group */
-                <div className="space-y-3 mb-4">
-                  <Input
-                    label="Nome do grupo *"
-                    value={editGroupData.name}
-                    onChange={(e) => setEditGroupData({ ...editGroupData, name: e.target.value })}
+          {globalAddonGroups.map((group) => {
+            const linked = isGroupLinked(group.id);
+            return (
+              <Card key={group.id} className={`p-4 ${linked ? 'bg-primary/5 border-primary/30' : 'bg-gray-50'}`}>
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    className="mt-1 rounded border-gray-300 text-primary focus:ring-primary"
+                    checked={linked}
+                    onChange={() => handleToggleAddonGroup(group.id)}
+                    disabled={linkAddonMutation.isPending || unlinkAddonMutation.isPending}
                   />
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input
-                      label="Mínimo"
-                      type="number"
-                      value={String(editGroupData.minSelect)}
-                      onChange={(e) => setEditGroupData({ ...editGroupData, minSelect: Number(e.target.value) })}
-                    />
-                    <Input
-                      label="Máximo"
-                      type="number"
-                      value={String(editGroupData.maxSelect)}
-                      onChange={(e) => setEditGroupData({ ...editGroupData, maxSelect: Number(e.target.value) })}
-                    />
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="ghost" size="sm" onClick={() => setEditingGroupId(null)}>
-                      Cancelar
-                    </Button>
-                    <Button
-                      size="sm"
-                      disabled={updateGroupMutation.isPending || !editGroupData.name}
-                      onClick={() => {
-                        updateGroupMutation.mutate({
-                          id: group.id,
-                          data: {
-                            name: editGroupData.name,
-                            minSelect: editGroupData.minSelect,
-                            maxSelect: editGroupData.maxSelect,
-                          },
-                        });
-                      }}>
-                      {updateGroupMutation.isPending ? 'Salvando...' : 'Salvar'}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex justify-between items-start mb-4">
-                  <div>
+                  <div className="flex-1">
                     <h4 className="font-bold text-text-primary">{group.name}</h4>
                     <p className="text-xs text-text-secondary">
                       Mínimo: {group.minSelect} | Máximo: {group.maxSelect}
                     </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      className="text-text-secondary hover:text-primary"
-                      onClick={() => {
-                        setEditingGroupId(group.id);
-                        setEditGroupData({
-                          name: group.name,
-                          minSelect: group.minSelect,
-                          maxSelect: group.maxSelect,
-                        });
-                      }}>
-                      <Edit2Icon className="w-4 h-4" />
-                    </button>
-                    <button
-                      className="text-text-secondary hover:text-danger"
-                      onClick={() => {
-                        setGroupToDelete(group.id);
-                        setDeleteGroupModalOpen(true);
-                      }}>
-                      <Trash2Icon className="w-4 h-4" />
-                    </button>
+                    {group.items && group.items.length > 0 && (
+                      <div className="mt-2 bg-white rounded-lg border border-border divide-y divide-border">
+                        {group.items.map((item) => (
+                          <div
+                            key={item.id}
+                            className="p-2.5 flex justify-between items-center text-sm"
+                          >
+                            <span className="text-text-secondary">{item.name}</span>
+                            <span className="font-medium text-text-secondary">
+                              {formatCurrency(item.priceCents)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
-
-              <div className="bg-white rounded-lg border border-border divide-y divide-border">
-                {group.items?.map((item) =>
-              <div
-                key={item.id}
-                className="p-3 flex justify-between items-center text-sm">
-                    <span>{item.name}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="font-medium">
-                        {formatCurrency(item.priceCents)}
-                      </span>
-                      <button
-                        className="text-text-secondary hover:text-danger"
-                        onClick={() => {
-                          setItemToDelete(item.id);
-                          setDeleteItemModalOpen(true);
-                        }}>
-                        <Trash2Icon className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-              )}
-
-                {/* Inline form for new item */}
-                {addingItemToGroupId === group.id ? (
-                  <div className="p-3 space-y-2">
-                    <Input
-                      label="Nome do item"
-                      value={newItemData.name}
-                      onChange={(e) => setNewItemData({ ...newItemData, name: e.target.value })}
-                      placeholder="Ex: Queijo extra"
-                    />
-                    <MoneyInput
-                      label="Preço"
-                      value={newItemData.priceCents}
-                      onChange={(val) => setNewItemData({ ...newItemData, priceCents: val })}
-                    />
-                    <div className="flex gap-2 justify-end">
-                      <Button variant="ghost" size="sm" onClick={() => setAddingItemToGroupId(null)}>
-                        Cancelar
-                      </Button>
-                      <Button
-                        size="sm"
-                        disabled={createItemMutation.isPending || !newItemData.name}
-                        onClick={() => {
-                          createItemMutation.mutate({
-                            addonGroupId: group.id,
-                            name: newItemData.name,
-                            priceCents: newItemData.priceCents,
-                          });
-                        }}>
-                        {createItemMutation.isPending ? 'Salvando...' : 'Salvar'}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-2 bg-gray-50 text-center">
-                    <button
-                      className="text-xs font-medium text-primary hover:text-primary-hover"
-                      onClick={() => {
-                        setAddingItemToGroupId(group.id);
-                        setNewItemData({ name: '', priceCents: 0 });
-                      }}>
-                      + Adicionar Item
-                    </button>
-                  </div>
-                )}
-              </div>
-            </Card>
-          )}
-
-          {(!currentAddonProduct?.addonGroups ||
-          currentAddonProduct.addonGroups.length === 0) && !showNewGroupForm &&
-          <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl">
-              <p className="text-text-muted text-sm">
-                Nenhum grupo de adicionais configurado.
-              </p>
-            </div>
-          }
+              </Card>
+            );
+          })}
         </div>
       </Modal>
 
@@ -759,40 +590,6 @@ export default function Products() {
         onConfirm={handleConfirmDelete}
         title="Excluir Produto"
         message="Tem certeza que deseja excluir este produto?"
-        isDanger />
-
-      <ConfirmDialog
-        isOpen={deleteGroupModalOpen}
-        onClose={() => {
-          setDeleteGroupModalOpen(false);
-          setGroupToDelete(null);
-        }}
-        onConfirm={() => {
-          if (groupToDelete) {
-            deleteGroupMutation.mutate(groupToDelete);
-            setDeleteGroupModalOpen(false);
-            setGroupToDelete(null);
-          }
-        }}
-        title="Excluir Grupo"
-        message="Tem certeza que deseja excluir este grupo de adicionais? Todos os itens serão removidos."
-        isDanger />
-
-      <ConfirmDialog
-        isOpen={deleteItemModalOpen}
-        onClose={() => {
-          setDeleteItemModalOpen(false);
-          setItemToDelete(null);
-        }}
-        onConfirm={() => {
-          if (itemToDelete) {
-            deleteItemMutation.mutate(itemToDelete);
-            setDeleteItemModalOpen(false);
-            setItemToDelete(null);
-          }
-        }}
-        title="Excluir Item"
-        message="Tem certeza que deseja excluir este item?"
         isDanger />
 
     </PageContainer>);

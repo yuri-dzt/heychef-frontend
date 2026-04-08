@@ -20,6 +20,7 @@ export interface ActiveOrder {
     unitPriceCents: number;
     totalPriceCents: number;
     status: string;
+    notes?: string;
     addons: { id: string; name: string; priceCents: number }[];
   }[];
 }

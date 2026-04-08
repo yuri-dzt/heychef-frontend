@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingBagIcon,
   BellIcon,
@@ -12,6 +12,7 @@ import {
 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { publicApi, type ActiveOrder } from '../api/public';
 import { formatCurrency } from '../utils/format';
 import type {
@@ -29,12 +30,36 @@ export default function PublicMenu() {
     enabled: !!tableToken,
   });
 
+  const queryClient = useQueryClient();
+
   const { data: activeOrder, refetch: refetchActiveOrder } = useQuery<ActiveOrder | null>({
     queryKey: ['activeOrder', tableToken],
     queryFn: () => publicApi.getActiveOrder(tableToken!),
     enabled: !!tableToken,
-    refetchInterval: 15000,
   });
+
+  // SSE for real-time order updates on this table
+  useEffect(() => {
+    if (!tableToken) return;
+    const apiUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
+      ? import.meta.env.VITE_API_URL
+      : 'http://localhost:3333';
+
+    const es = new EventSource(`${apiUrl}/public/events/${tableToken}`);
+
+    es.addEventListener('order-updated', () => {
+      queryClient.invalidateQueries({ queryKey: ['activeOrder', tableToken] });
+    });
+
+    es.onerror = () => {
+      es.close();
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['activeOrder', tableToken] });
+      }, 3000);
+    };
+
+    return () => es.close();
+  }, [tableToken, queryClient]);
 
   const [showActiveOrder, setShowActiveOrder] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('');
@@ -45,6 +70,8 @@ export default function PublicMenu() {
   );
   const [quantity, setQuantity] = useState(1);
   const [selectedAddons, setSelectedAddons] = useState<SelectedAddon[]>([]);
+  const [removedIngredients, setRemovedIngredients] = useState<string[]>([]);
+  const [itemToRemove, setItemToRemove] = useState<string | null>(null);
   // Cart/Checkout State
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [customerName, setCustomerName] = useState('');
@@ -105,6 +132,7 @@ export default function PublicMenu() {
       }
     });
     setSelectedAddons(initialAddons);
+    setRemovedIngredients([]);
   };
   const toggleAddon = (groupId: string, item: any, isRadio: boolean) => {
     setSelectedAddons((prev) => {
@@ -177,10 +205,15 @@ export default function PublicMenu() {
       }
     });
     if (!isValid) return;
+    const itemNotes = removedIngredients.length > 0
+      ? `Sem: ${removedIngredients.join(', ')}`
+      : undefined;
     const newItem: CartItem = {
       product: selectedProduct,
       quantity,
       selectedAddons,
+      removedIngredients: [...removedIngredients],
+      notes: itemNotes,
       totalCents: currentProductTotal,
       cartItemId: `ci_${Date.now()}`
     };
@@ -226,6 +259,7 @@ export default function PublicMenu() {
         productId: item.product.id,
         quantity: item.quantity,
         addons: item.selectedAddons.map((a) => ({ addonItemId: a.addonItemId })),
+        notes: item.notes,
       })),
     });
   };
@@ -485,6 +519,9 @@ export default function PublicMenu() {
                               ))}
                             </div>
                           )}
+                          {item.notes && (
+                            <p className="text-xs text-red-500 mt-0.5">{item.notes}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 ml-2">
                           <span className="text-sm font-medium whitespace-nowrap">
@@ -492,16 +529,7 @@ export default function PublicMenu() {
                           </span>
                           {canRemove && (
                             <button
-                              onClick={async () => {
-                                if (!confirm('Remover este item?')) return;
-                                try {
-                                  await publicApi.removeItem(tableToken!, item.id);
-                                  refetchActiveOrder();
-                                  toast.success('Item removido');
-                                } catch {
-                                  toast.error('Erro ao remover item');
-                                }
-                              }}
+                              onClick={() => setItemToRemove(item.id)}
                               className="p-1.5 rounded-lg bg-white/60 hover:bg-red-100 text-red-500 transition-colors"
                             >
                               <XIcon className="w-4 h-4" />
@@ -600,6 +628,42 @@ export default function PublicMenu() {
                 <p className="text-xl font-bold text-primary mt-3">
                   {formatCurrency(selectedProduct.priceCents)}
                 </p>
+
+                {selectedProduct.ingredients && selectedProduct.ingredients.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-border">
+                    <h3 className="font-semibold text-text-primary mb-3">
+                      Ingredientes
+                    </h3>
+                    <p className="text-xs text-text-muted mb-3">Desmarque o que não deseja</p>
+                    <div className="space-y-2">
+                      {selectedProduct.ingredients.map((ingredient) => {
+                        const isRemoved = removedIngredients.includes(ingredient);
+                        return (
+                          <label
+                            key={ingredient}
+                            className={`flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors ${
+                              isRemoved ? 'bg-red-50 line-through text-text-muted' : 'bg-gray-50'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={!isRemoved}
+                              onChange={() => {
+                                if (isRemoved) {
+                                  setRemovedIngredients(removedIngredients.filter(i => i !== ingredient));
+                                } else {
+                                  setRemovedIngredients([...removedIngredients, ingredient]);
+                                }
+                              }}
+                              className="rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <span className="text-sm">{ingredient}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {selectedProduct.addonGroups?.map((group) =>
               <div
@@ -783,12 +847,15 @@ export default function PublicMenu() {
                             <li
                               key={addon.addonItemId}
                               className="text-xs text-text-secondary">
-                              
+
                                         + {addon.addonItemName}
                                       </li>
                             )}
                                   </ul>
                           }
+                                {item.notes && (
+                                  <p className="text-xs text-red-500 mt-0.5">{item.notes}</p>
+                                )}
                               </div>
                             </div>
                             <div className="text-right">
@@ -858,6 +925,26 @@ export default function PublicMenu() {
           </>
         }
       </AnimatePresence>
+
+      <ConfirmDialog
+        isOpen={!!itemToRemove}
+        onClose={() => setItemToRemove(null)}
+        onConfirm={async () => {
+          if (!itemToRemove) return;
+          try {
+            await publicApi.removeItem(tableToken!, itemToRemove);
+            refetchActiveOrder();
+            toast.success('Item removido');
+          } catch {
+            toast.error('Erro ao remover item');
+          }
+          setItemToRemove(null);
+        }}
+        title="Remover item"
+        message="Tem certeza que deseja remover este item do pedido?"
+        confirmText="Remover"
+        isDanger
+      />
     </>);
 
 }

@@ -14,6 +14,7 @@ import {
   ChevronDownIcon,
   TagIcon,
   UtensilsIcon,
+  PlusCircleIcon,
   BuildingIcon,
   CrownIcon,
   HomeIcon,
@@ -256,6 +257,17 @@ function CardapioSubmenu({
           >
             <UtensilsIcon className="w-4 h-4" />
             <span>Produtos</span>
+          </NavLink>
+          <NavLink
+            to="/menu/addons"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors duration-200 ${
+                isActive ? 'bg-primary text-white font-medium' : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+              }`
+            }
+          >
+            <PlusCircleIcon className="w-4 h-4" />
+            <span>Adicionais</span>
           </NavLink>
         </div>
       )}
