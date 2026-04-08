@@ -55,6 +55,7 @@ export interface Product {
   description?: string;
   priceCents: number;
   imageUrl?: string;
+  ingredients?: string[];
   active: boolean;
   createdAt: number;
   updatedAt?: number;
@@ -188,6 +189,7 @@ export interface PublicProduct {
   description?: string;
   priceCents: number;
   imageUrl?: string;
+  ingredients?: string[];
   addonGroups?: ProductAddonGroup[];
 }
 

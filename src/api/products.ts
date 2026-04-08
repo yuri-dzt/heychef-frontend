@@ -8,6 +8,7 @@ export interface CreateProductRequest {
   priceCents: number;
   imageUrl?: string;
   active?: boolean;
+  ingredients?: string[];
 }
 
 export interface UpdateProductRequest {
@@ -17,6 +18,7 @@ export interface UpdateProductRequest {
   priceCents?: number;
   imageUrl?: string;
   active?: boolean;
+  ingredients?: string[];
 }
 
 export const productsApi = {

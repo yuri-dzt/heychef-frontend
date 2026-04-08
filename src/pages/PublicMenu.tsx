@@ -388,6 +388,11 @@ export default function PublicMenu() {
                     <p className="text-sm text-text-secondary mt-1 line-clamp-2 leading-snug">
                       {product.description}
                     </p>
+                    {product.ingredients && product.ingredients.length > 0 && (
+                      <p className="text-xs text-text-muted mt-1">
+                        {product.ingredients.join(' \u2022 ')}
+                      </p>
+                    )}
                     <p className="font-bold text-primary mt-2">
                       {formatCurrency(product.priceCents)}
                     </p>
@@ -587,6 +592,11 @@ export default function PublicMenu() {
                 <p className="text-text-secondary mt-2 text-sm leading-relaxed">
                   {selectedProduct.description}
                 </p>
+                {selectedProduct.ingredients && selectedProduct.ingredients.length > 0 && (
+                  <p className="text-xs text-text-muted mt-1">
+                    {selectedProduct.ingredients.join(' \u2022 ')}
+                  </p>
+                )}
                 <p className="text-xl font-bold text-primary mt-3">
                   {formatCurrency(selectedProduct.priceCents)}
                 </p>

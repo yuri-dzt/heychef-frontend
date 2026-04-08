@@ -23,6 +23,7 @@ import { Modal } from '../components/Modal';
 import { Input } from '../components/Input';
 import { Select } from '../components/Select';
 import { MoneyInput } from '../components/MoneyInput';
+import { IngredientsInput } from '../components/IngredientsInput';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { formatCurrency } from '../utils/format';
 import type { Product, Category, ProductAddonGroup } from '../types';
@@ -140,7 +141,8 @@ export default function Products() {
     priceCents: 0,
     categoryId: '',
     imageUrl: '',
-    active: true
+    active: true,
+    ingredients: [] as string[]
   });
   // Delete confirm state
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -170,7 +172,8 @@ export default function Products() {
         priceCents: product.priceCents,
         categoryId: product.categoryId,
         imageUrl: product.imageUrl || '',
-        active: product.active
+        active: product.active,
+        ingredients: product.ingredients || []
       });
     } else {
       setEditingProduct(null);
@@ -180,7 +183,8 @@ export default function Products() {
         priceCents: 0,
         categoryId: categories[0]?.id || '',
         imageUrl: '',
-        active: true
+        active: true,
+        ingredients: []
       });
     }
     setIsProductModalOpen(true);
@@ -201,6 +205,7 @@ export default function Products() {
           categoryId: formData.categoryId,
           imageUrl: formData.imageUrl,
           active: formData.active,
+          ingredients: formData.ingredients.length > 0 ? formData.ingredients : undefined,
         },
       });
     } else {
@@ -211,6 +216,7 @@ export default function Products() {
         categoryId: formData.categoryId,
         imageUrl: formData.imageUrl,
         active: formData.active,
+        ingredients: formData.ingredients.length > 0 ? formData.ingredients : undefined,
       });
     }
   };
@@ -475,6 +481,12 @@ export default function Products() {
               placeholder="Descreva os ingredientes e detalhes do produto..." />
 
           </div>
+
+          <IngredientsInput
+            label="Ingredientes (opcional)"
+            value={formData.ingredients}
+            onChange={(ingredients) => setFormData({ ...formData, ingredients })}
+          />
 
           <ImageUpload
             label="Imagem (opcional)"
