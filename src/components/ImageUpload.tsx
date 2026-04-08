@@ -75,8 +75,8 @@ export function ImageUpload({ value, onChange, label }: ImageUploadProps) {
         </button>
       </div>
 
-      {/* Preview */}
-      {value && (
+      {/* Preview — only in upload mode */}
+      {mode === 'upload' && value && (
         <div className="relative mb-2 rounded-lg overflow-hidden border border-border">
           <img src={value} alt="Preview" className="w-full h-32 object-cover" />
           <button
@@ -129,14 +129,21 @@ export function ImageUpload({ value, onChange, label }: ImageUploadProps) {
       )}
 
       {/* URL mode */}
-      {mode === 'url' && !value && (
-        <input
-          type="url"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="https://exemplo.com/imagem.jpg"
-          className="w-full rounded-lg border border-border p-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-        />
+      {mode === 'url' && (
+        <div className="space-y-2">
+          <input
+            type="url"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="https://exemplo.com/imagem.jpg"
+            className="w-full rounded-lg border border-border p-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+          />
+          {value && (
+            <div className="relative rounded-lg overflow-hidden border border-border">
+              <img src={value} alt="Preview" className="w-full h-32 object-cover" />
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
