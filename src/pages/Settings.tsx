@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect, useState } from 'react';
 import { StoreIcon, CreditCardIcon, ShieldCheckIcon, UserIcon } from 'lucide-react';
 import { PageContainer } from '../components/PageContainer';
 import { Header } from '../components/Header';
@@ -8,16 +8,120 @@ import { Input } from '../components/Input';
 import { Badge } from '../components/Badge';
 import { formatDate } from '../utils/format';
 import { useAuth } from '../contexts/AuthContext';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { organizationsApi } from '../api/organizations';
+import { authApi } from '../api/auth';
+import { toast } from 'sonner';
+
+function PasswordChangeCard() {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const changePasswordMutation = useMutation({
+    mutationFn: ({ current, next }: { current: string; next: string }) =>
+      authApi.changePassword(current, next),
+    onSuccess: () => {
+      toast.success('Senha atualizada com sucesso');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao atualizar senha';
+      toast.error(msg);
+    },
+  });
+
+  const handleSubmit = () => {
+    if (!currentPassword) {
+      toast.error('Informe a senha atual');
+      return;
+    }
+    if (!newPassword || newPassword.length < 4) {
+      toast.error('A nova senha deve ter pelo menos 4 caracteres');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('A confirmação da nova senha não corresponde');
+      return;
+    }
+    changePasswordMutation.mutate({ current: currentPassword, next: newPassword });
+  };
+
+  return (
+    <Card>
+      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border">
+        <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+          <ShieldCheckIcon className="w-5 h-5" />
+        </div>
+        <h2 className="text-lg font-semibold text-text-primary">
+          Segurança
+        </h2>
+      </div>
+
+      <div className="space-y-4 max-w-md">
+        <Input
+          label="Senha Atual"
+          type="password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          autoComplete="current-password"
+        />
+        <Input
+          label="Nova Senha"
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          autoComplete="new-password"
+        />
+        <Input
+          label="Confirmar Nova Senha"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          autoComplete="new-password"
+        />
+        <Button
+          className="mt-2"
+          onClick={handleSubmit}
+          isLoading={changePasswordMutation.isPending}
+        >
+          Atualizar Senha
+        </Button>
+      </div>
+    </Card>
+  );
+}
 
 export default function Settings() {
   const { user, isAdmin } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: organization } = useQuery({
     queryKey: ['my-organization'],
     queryFn: () => organizationsApi.getMyOrg(),
     enabled: !isAdmin,
+  });
+
+  const [orgName, setOrgName] = useState('');
+
+  useEffect(() => {
+    if (organization?.name) {
+      setOrgName(organization.name);
+    }
+  }, [organization?.name]);
+
+  const updateOrgMutation = useMutation({
+    mutationFn: (name: string) => organizationsApi.updateMyOrg({ name }),
+    onSuccess: () => {
+      toast.success('Dados do estabelecimento atualizados');
+      queryClient.invalidateQueries({ queryKey: ['my-organization'] });
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao atualizar';
+      toast.error(msg);
+    },
   });
 
   if (isAdmin) {
@@ -38,36 +142,32 @@ export default function Settings() {
             </div>
 
             <div className="space-y-4 max-w-md">
-              <Input label="Nome" defaultValue={user?.name} disabled />
-              <Input label="Email" defaultValue={user?.email} disabled />
+              <Input label="Nome" value={user?.name || ''} disabled readOnly />
+              <Input label="Email" value={user?.email || ''} disabled readOnly />
               <Badge variant="primary">Super Admin</Badge>
             </div>
           </Card>
 
           {/* Security */}
-          <Card>
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border">
-              <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                <ShieldCheckIcon className="w-5 h-5" />
-              </div>
-              <h2 className="text-lg font-semibold text-text-primary">
-                Segurança
-              </h2>
-            </div>
-
-            <div className="space-y-4 max-w-md">
-              <Input label="Senha Atual" type="password" />
-              <Input label="Nova Senha" type="password" />
-              <Input label="Confirmar Nova Senha" type="password" />
-              <Button className="mt-2">Atualizar Senha</Button>
-            </div>
-          </Card>
+          <PasswordChangeCard />
         </div>
       </PageContainer>
     );
   }
 
-  const isPlanActive = organization?.planExpiresAt ? organization.planExpiresAt > Date.now() : false;
+  const isPlanActive = organization?.planExpiresAt
+    ? organization.planExpiresAt > Date.now()
+    : false;
+  const canEditOrg = user?.role === 'ADMIN';
+
+  const handleSaveOrg = () => {
+    const trimmed = orgName.trim();
+    if (!trimmed) {
+      toast.error('Informe o nome do estabelecimento');
+      return;
+    }
+    updateOrgMutation.mutate(trimmed);
+  };
 
   return (
     <PageContainer maxWidth="lg">
@@ -81,18 +181,31 @@ export default function Settings() {
               <StoreIcon className="w-5 h-5" />
             </div>
             <h2 className="text-lg font-semibold text-text-primary">
-              Dados do Restaurante
+              Dados do Estabelecimento
             </h2>
           </div>
 
           <div className="space-y-4 max-w-md">
             <Input
-              label="Nome do Restaurante"
-              defaultValue={organization?.name || ''} />
-
-            <Input label="CNPJ (Opcional)" placeholder="00.000.000/0000-00" />
-            <Input label="Telefone" placeholder="(00) 00000-0000" />
-            <Button className="mt-2">Salvar Alterações</Button>
+              label="Nome do Estabelecimento"
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              disabled={!canEditOrg}
+            />
+            {canEditOrg && (
+              <Button
+                className="mt-2"
+                onClick={handleSaveOrg}
+                isLoading={updateOrgMutation.isPending}
+              >
+                Salvar Alterações
+              </Button>
+            )}
+            {!canEditOrg && (
+              <p className="text-sm text-text-secondary italic">
+                Apenas administradores podem alterar os dados do estabelecimento.
+              </p>
+            )}
           </div>
         </Card>
 
@@ -166,24 +279,8 @@ export default function Settings() {
         </Card>
 
         {/* Security */}
-        <Card>
-          <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border">
-            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-              <ShieldCheckIcon className="w-5 h-5" />
-            </div>
-            <h2 className="text-lg font-semibold text-text-primary">
-              Segurança
-            </h2>
-          </div>
-
-          <div className="space-y-4 max-w-md">
-            <Input label="Senha Atual" type="password" />
-            <Input label="Nova Senha" type="password" />
-            <Input label="Confirmar Nova Senha" type="password" />
-            <Button className="mt-2">Atualizar Senha</Button>
-          </div>
-        </Card>
+        <PasswordChangeCard />
       </div>
-    </PageContainer>);
-
+    </PageContainer>
+  );
 }

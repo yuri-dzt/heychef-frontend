@@ -32,10 +32,11 @@ export default function Register() {
     setIsLoading(true);
     try {
       await authApi.register(formData);
-      toast.success('Restaurante registrado com sucesso!');
+      toast.success('Cadastro realizado! Seu estabelecimento será ativado em breve pelo administrador.');
       navigate('/login');
-    } catch (error) {
-      toast.error('Erro ao registrar. Tente novamente.');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Erro ao registrar. Tente novamente.';
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -56,7 +57,7 @@ export default function Register() {
         <Card className="shadow-xl shadow-black/5 border-0">
           <form onSubmit={handleSubmit} className="space-y-5">
             <Input
-              label="Nome do Restaurante"
+              label="Nome do Estabelecimento"
               name="organizationName"
               placeholder="Ex: Burger House"
               value={formData.organizationName}

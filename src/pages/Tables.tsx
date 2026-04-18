@@ -33,7 +33,10 @@ export default function Tables() {
       queryClient.invalidateQueries({ queryKey: ['tables'] });
       toast.success('Mesa criada');
     },
-    onError: () => toast.error('Erro ao criar mesa'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao criar mesa';
+      toast.error(msg);
+    },
   });
 
   const updateMutation = useMutation({
@@ -43,7 +46,10 @@ export default function Tables() {
       queryClient.invalidateQueries({ queryKey: ['tables'] });
       toast.success('Mesa atualizada');
     },
-    onError: () => toast.error('Erro ao atualizar mesa'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao atualizar mesa';
+      toast.error(msg);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -52,7 +58,10 @@ export default function Tables() {
       queryClient.invalidateQueries({ queryKey: ['tables'] });
       toast.success('Mesa excluída');
     },
-    onError: () => toast.error('Erro ao excluir mesa'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao excluir mesa';
+      toast.error(msg);
+    },
   });
 
   const regenerateTokenMutation = useMutation({
@@ -61,7 +70,10 @@ export default function Tables() {
       queryClient.invalidateQueries({ queryKey: ['tables'] });
       toast.success('Token regenerado com sucesso');
     },
-    onError: () => toast.error('Erro ao regenerar token'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao regenerar token';
+      toast.error(msg);
+    },
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);

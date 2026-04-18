@@ -1,9 +1,10 @@
 import axios from 'axios';
 
-const API_URL =
-typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL ?
-import.meta.env.VITE_API_URL :
-'http://localhost:3333';
+export const API_URL = import.meta.env.VITE_API_URL;
+
+if (!API_URL) {
+  throw new Error('VITE_API_URL environment variable is not set. Check your .env configuration.');
+}
 
 export const apiClient = axios.create({
   baseURL: API_URL,

@@ -31,8 +31,9 @@ export default function Addons() {
       toast.success('Grupo criado');
       setIsGroupModalOpen(false);
     },
-    onError: () => {
-      toast.error('Erro ao criar grupo');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao criar grupo';
+      toast.error(msg);
     },
   });
 
@@ -44,8 +45,9 @@ export default function Addons() {
       toast.success('Grupo atualizado');
       setIsGroupModalOpen(false);
     },
-    onError: () => {
-      toast.error('Erro ao atualizar grupo');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao atualizar grupo';
+      toast.error(msg);
     },
   });
 
@@ -55,8 +57,9 @@ export default function Addons() {
       queryClient.invalidateQueries({ queryKey: ['addon-groups'] });
       toast.success('Grupo excluído');
     },
-    onError: () => {
-      toast.error('Erro ao excluir grupo');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao excluir grupo';
+      toast.error(msg);
     },
   });
 
@@ -70,8 +73,9 @@ export default function Addons() {
       setAddingItemToGroupId(null);
       setNewItemData({ name: '', priceCents: 0 });
     },
-    onError: () => {
-      toast.error('Erro ao adicionar item');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao adicionar item';
+      toast.error(msg);
     },
   });
 
@@ -81,8 +85,9 @@ export default function Addons() {
       queryClient.invalidateQueries({ queryKey: ['addon-groups'] });
       toast.success('Item excluído');
     },
-    onError: () => {
-      toast.error('Erro ao excluir item');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao excluir item';
+      toast.error(msg);
     },
   });
 

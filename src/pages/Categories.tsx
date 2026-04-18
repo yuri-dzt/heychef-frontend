@@ -28,8 +28,9 @@ export default function Categories() {
       toast.success('Categoria criada');
       setIsModalOpen(false);
     },
-    onError: () => {
-      toast.error('Erro ao criar categoria');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao criar categoria';
+      toast.error(msg);
     },
   });
 
@@ -41,8 +42,9 @@ export default function Categories() {
       toast.success('Categoria atualizada');
       setIsModalOpen(false);
     },
-    onError: () => {
-      toast.error('Erro ao atualizar categoria');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao atualizar categoria';
+      toast.error(msg);
     },
   });
 
@@ -53,8 +55,9 @@ export default function Categories() {
       toast.success('Categoria excluída');
       setDeleteModalOpen(false);
     },
-    onError: () => {
-      toast.error('Erro ao excluir categoria');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao excluir categoria';
+      toast.error(msg);
     },
   });
 

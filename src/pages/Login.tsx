@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { MailIcon, LockIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -40,7 +40,7 @@ export default function Login() {
             HeyChef
           </h1>
           <p className="text-text-secondary mt-2">
-            Gestão inteligente para seu restaurante
+            Gestão inteligente para seu estabelecimento
           </p>
         </div>
 
@@ -53,8 +53,9 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               leftIcon={<MailIcon className="w-5 h-5" />}
+              autoFocus
               required />
-            
+
 
             <Input
               label="Senha"
@@ -66,22 +67,6 @@ export default function Login() {
               required />
             
 
-            <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="rounded border-gray-300 text-primary focus:ring-primary" />
-                
-                <span className="text-text-secondary">Lembrar-me</span>
-              </label>
-              <a
-                href="#"
-                className="text-primary hover:text-primary-hover font-medium">
-                
-                Esqueceu a senha?
-              </a>
-            </div>
-
             <Button
               type="submit"
               className="w-full"
@@ -92,16 +77,6 @@ export default function Login() {
             </Button>
           </form>
         </Card>
-
-        <p className="text-center mt-8 text-text-secondary text-sm">
-          Ainda não tem uma conta?{' '}
-          <Link
-            to="/register"
-            className="text-primary hover:text-primary-hover font-medium">
-            
-            Registre seu restaurante
-          </Link>
-        </p>
 
       </div>
     </div>);

@@ -52,7 +52,10 @@ export default function AdminPlans() {
       toast.success('Plano criado');
       setIsModalOpen(false);
     },
-    onError: () => toast.error('Erro ao criar plano'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao criar plano';
+      toast.error(msg);
+    },
   });
 
   const updateMutation = useMutation({
@@ -63,7 +66,10 @@ export default function AdminPlans() {
       toast.success('Plano atualizado');
       setIsModalOpen(false);
     },
-    onError: () => toast.error('Erro ao atualizar plano'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao atualizar plano';
+      toast.error(msg);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -72,7 +78,10 @@ export default function AdminPlans() {
       queryClient.invalidateQueries({ queryKey: ['plans'] });
       toast.success('Plano excluído');
     },
-    onError: () => toast.error('Não é possível excluir um plano que está em uso'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Não é possível excluir um plano que está em uso';
+      toast.error(msg);
+    },
   });
 
   const handleOpen = (plan?: Plan) => {

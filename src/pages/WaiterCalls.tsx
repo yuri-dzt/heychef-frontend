@@ -26,8 +26,9 @@ export default function WaiterCalls() {
       queryClient.invalidateQueries({ queryKey: ['waiter-calls'] });
       toast.success('Chamado resolvido');
     },
-    onError: () => {
-      toast.error('Erro ao resolver chamado');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao resolver chamado';
+      toast.error(msg);
     },
   });
 
@@ -47,23 +48,23 @@ export default function WaiterCalls() {
     <PageContainer maxWidth="lg">
       <Header title="Chamados de Garçom" />
 
-      <div className="flex gap-2 mb-6 border-b border-border pb-4">
+      <div className="inline-flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg">
         <button
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'OPEN' ? 'bg-primary text-white' : 'bg-white text-text-secondary hover:bg-gray-50 border border-border'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === 'OPEN' ? 'bg-white text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
           onClick={() => setFilter('OPEN')}>
-          
+
           Abertos ({calls.filter((c) => c.status === 'OPEN').length})
         </button>
         <button
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'RESOLVED' ? 'bg-primary text-white' : 'bg-white text-text-secondary hover:bg-gray-50 border border-border'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === 'RESOLVED' ? 'bg-white text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
           onClick={() => setFilter('RESOLVED')}>
-          
+
           Resolvidos
         </button>
         <button
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'ALL' ? 'bg-primary text-white' : 'bg-white text-text-secondary hover:bg-gray-50 border border-border'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === 'ALL' ? 'bg-white text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
           onClick={() => setFilter('ALL')}>
-          
+
           Todos
         </button>
       </div>

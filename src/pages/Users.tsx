@@ -30,7 +30,10 @@ export default function Users() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('Usuário criado');
     },
-    onError: () => toast.error('Erro ao criar usuário'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao criar usuário';
+      toast.error(msg);
+    },
   });
 
   const updateMutation = useMutation({
@@ -40,7 +43,10 @@ export default function Users() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('Usuário atualizado');
     },
-    onError: () => toast.error('Erro ao atualizar usuário'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao atualizar usuário';
+      toast.error(msg);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -49,7 +55,10 @@ export default function Users() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('Usuário excluído');
     },
-    onError: () => toast.error('Erro ao excluir usuário'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao excluir usuário';
+      toast.error(msg);
+    },
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -245,26 +254,32 @@ export default function Users() {
             required />
 
           }
-          <Select
-            label="Função"
-            options={[
-            {
-              value: 'USER',
-              label: 'Usuário (Garçom/Atendente)'
-            },
-            {
-              value: 'ADMIN',
-              label: 'Administrador (Gerente)'
-            }]
-            }
-            value={formData.role}
-            onChange={(e) =>
-            setFormData({
-              ...formData,
-              role: e.target.value as UserRole
-            })
-            } />
-          
+          <div>
+            <Select
+              label="Função"
+              options={[
+              {
+                value: 'USER',
+                label: 'Usuário (Garçom/Atendente)'
+              },
+              {
+                value: 'ADMIN',
+                label: 'Administrador (Gerente)'
+              }]
+              }
+              value={formData.role}
+              onChange={(e) =>
+              setFormData({
+                ...formData,
+                role: e.target.value as UserRole
+              })
+              } />
+            <p className="text-xs text-text-muted mt-1">
+              {formData.role === 'ADMIN' && 'Acesso total: gerencia tudo do estabelecimento'}
+              {formData.role === 'SUPPORT' && 'Suporte: acesso limitado por permissões'}
+              {formData.role === 'USER' && 'Usuário comum: garçom, cozinheiro, etc (acesso por permissões)'}
+            </p>
+          </div>
         </div>
       </Modal>
 

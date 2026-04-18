@@ -30,8 +30,9 @@ export default function Reports() {
       queryClient.invalidateQueries({ queryKey: ['reports'] });
       toast.success('Relatórios gerados com sucesso');
     },
-    onError: () => {
-      toast.error('Erro ao gerar relatórios');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao gerar relatórios';
+      toast.error(msg);
     },
   });
   const [startDate, setStartDate] = useState(() => {
@@ -163,7 +164,6 @@ export default function Reports() {
               
             </div>
           </div>
-          <Button className="w-full sm:w-auto">Filtrar</Button>
         </div>
       </Card>
 

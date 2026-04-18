@@ -23,6 +23,7 @@ const Onboarding = lazy(() => import('../pages/Onboarding'));
 const AuditLog = lazy(() => import('../pages/AuditLog'));
 const Sessions = lazy(() => import('../pages/Sessions'));
 const Addons = lazy(() => import('../pages/Addons'));
+const AdminSetup = lazy(() => import('../pages/AdminSetup'));
 // Loading fallback
 const PageLoader = () =>
 <div className="flex-1 flex items-center justify-center min-h-[50vh]">
@@ -36,6 +37,7 @@ export function AppRoutes() {
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/admin/setup" element={<AdminSetup />} />
 
         {/* Public Menu Route */}
         <Route element={<PublicLayout />}>

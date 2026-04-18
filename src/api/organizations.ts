@@ -17,6 +17,11 @@ export const organizationsApi = {
     return response.data;
   },
 
+  updateMyOrg: async (data: { name: string }): Promise<Organization> => {
+    const response = await apiClient.patch('/organizations/me', data);
+    return response.data;
+  },
+
   renewPlan: async (id: string): Promise<Organization> => {
     const response = await apiClient.patch(`/organizations/${id}/renew-plan`);
     return response.data;

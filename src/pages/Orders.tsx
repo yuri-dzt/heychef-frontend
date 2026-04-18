@@ -97,8 +97,9 @@ export default function Orders() {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       toast.success('Status atualizado');
     },
-    onError: () => {
-      toast.error('Erro ao atualizar status');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao atualizar status';
+      toast.error(msg);
     },
   });
 
@@ -108,8 +109,9 @@ export default function Orders() {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       toast.success('Pedido cancelado');
     },
-    onError: () => {
-      toast.error('Erro ao cancelar pedido');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao cancelar pedido';
+      toast.error(msg);
     },
   });
 
@@ -237,7 +239,7 @@ export default function Orders() {
                       <div
                         className={`w-80 flex flex-col rounded-xl border overflow-hidden transition-colors ${
                           snapshot.isDraggingOver
-                            ? 'bg-primary/5 border-primary/30'
+                            ? 'bg-primary/10 border-2 border-dashed border-primary'
                             : 'bg-gray-50/50 border-border'
                         }`}
                       >
@@ -424,8 +426,9 @@ export default function Orders() {
                                 await ordersApi.updateItemStatus((item as any).id, cfg.next);
                                 queryClient.invalidateQueries({ queryKey: ['orders'] });
                                 toast.success(`${item.productName}: ${cfg.nextLabel}`);
-                              } catch {
-                                toast.error('Erro ao atualizar item');
+                              } catch (error: any) {
+                                const msg = error?.response?.data?.message || 'Erro ao atualizar item';
+                                toast.error(msg);
                               }
                             }}
                             className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white border border-current text-primary hover:bg-primary hover:text-white transition-colors whitespace-nowrap"

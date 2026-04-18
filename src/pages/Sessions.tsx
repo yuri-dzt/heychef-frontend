@@ -52,8 +52,9 @@ export default function Sessions() {
       toast.success('Dispositivo desconectado');
       setRevokeId(null);
     },
-    onError: () => {
-      toast.error('Erro ao desconectar dispositivo');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao desconectar dispositivo';
+      toast.error(msg);
     },
   });
 
@@ -64,8 +65,9 @@ export default function Sessions() {
       toast.success('Todos os outros dispositivos foram desconectados');
       setShowRevokeAll(false);
     },
-    onError: () => {
-      toast.error('Erro ao desconectar dispositivos');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao desconectar dispositivos';
+      toast.error(msg);
     },
   });
 

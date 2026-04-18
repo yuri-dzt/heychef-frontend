@@ -67,7 +67,10 @@ export default function AdminOrganizations() {
       setIsCreateOpen(false);
       setCreateForm({ name: '', adminName: '', adminEmail: '', adminPassword: '', planId: '' });
     },
-    onError: () => toast.error('Erro ao criar estabelecimento'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao criar estabelecimento';
+      toast.error(msg);
+    },
   });
 
   const assignPlanMutation = useMutation({
@@ -77,7 +80,10 @@ export default function AdminOrganizations() {
       queryClient.invalidateQueries({ queryKey: ['organizations'] });
       toast.success('Plano atribuído');
     },
-    onError: () => toast.error('Erro ao atribuir plano'),
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao atribuir plano';
+      toast.error(msg);
+    },
   });
 
   const renewMutation = useMutation({
@@ -87,8 +93,9 @@ export default function AdminOrganizations() {
       toast.success('Plano renovado por mais 30 dias');
       setRenewOrg(null);
     },
-    onError: () => {
-      toast.error('Erro ao renovar plano');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao renovar plano';
+      toast.error(msg);
     },
   });
 
@@ -301,7 +308,7 @@ export default function AdminOrganizations() {
                 type="email"
                 value={createForm.adminEmail}
                 onChange={(e) => setCreateForm((p) => ({ ...p, adminEmail: e.target.value }))}
-                placeholder="email@restaurante.com"
+                placeholder="email@estabelecimento.com"
               />
               <Input
                 label="Senha *"

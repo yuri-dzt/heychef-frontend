@@ -101,6 +101,14 @@ export function Sidebar() {
         </div>
 
         <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+          {/* Plan expired banner — only for restaurant users */}
+          {!isAdmin && myOrg?.planExpiresAt && myOrg.planExpiresAt < Date.now() && (
+            <div className="mx-3 mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+              <p className="text-xs font-semibold text-red-400 mb-1">Plano expirado</p>
+              <p className="text-xs text-gray-400">Você só pode visualizar dados. Renove seu plano para continuar operando.</p>
+            </div>
+          )}
+
           {/* Admin view — platform management only */}
           {isAdmin && (
             <>
@@ -112,7 +120,7 @@ export function Sidebar() {
             </>
           )}
 
-          {/* Restaurant ADMIN view */}
+          {/* Organization ADMIN view */}
           {isOrgAdmin && (
             <>
               <NavItem to="/" icon={<HomeIcon className="w-5 h-5" />} label="Dashboard" />

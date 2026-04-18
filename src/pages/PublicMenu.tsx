@@ -41,9 +41,7 @@ export default function PublicMenu() {
   // SSE for real-time order updates on this table
   useEffect(() => {
     if (!tableToken) return;
-    const apiUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
-      ? import.meta.env.VITE_API_URL
-      : 'http://localhost:3333';
+    const apiUrl = import.meta.env.VITE_API_URL;
 
     const es = new EventSource(`${apiUrl}/public/events/${tableToken}`);
 
@@ -234,8 +232,9 @@ export default function PublicMenu() {
       setCustomerName('');
       setNotes('');
     },
-    onError: () => {
-      toast.error('Erro ao enviar pedido. Tente novamente.');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao enviar pedido. Tente novamente.';
+      toast.error(msg);
     },
   });
 
@@ -244,8 +243,9 @@ export default function PublicMenu() {
     onSuccess: () => {
       toast.success('Garçom chamado! Aguarde um momento.');
     },
-    onError: () => {
-      toast.error('Erro ao chamar garçom. Tente novamente.');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao chamar garçom. Tente novamente.';
+      toast.error(msg);
     },
   });
 
@@ -378,19 +378,22 @@ export default function PublicMenu() {
         )}
 
         {/* Category Tabs */}
-        <div className="px-4 py-2 overflow-x-auto no-scrollbar flex gap-2">
-          {menu.categories.map((category) =>
-          <button
-            key={category.id}
-            onClick={() => setActiveCategory(category.id)}
-            className={`
+        <div className="relative">
+          <div className="px-4 py-2 overflow-x-auto no-scrollbar flex gap-2">
+            {menu.categories.map((category) =>
+            <button
+              key={category.id}
+              onClick={() => setActiveCategory(category.id)}
+              className={`
                 whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-colors
                 ${activeCategory === category.id ? 'bg-primary text-white' : 'bg-gray-100 text-text-secondary hover:bg-gray-200'}
               `}>
-            
-              {category.name}
-            </button>
-          )}
+
+                {category.name}
+              </button>
+            )}
+          </div>
+          <div className="absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-surface to-transparent pointer-events-none" />
         </div>
       </header>
 
@@ -935,8 +938,9 @@ export default function PublicMenu() {
             await publicApi.removeItem(tableToken!, itemToRemove);
             refetchActiveOrder();
             toast.success('Item removido');
-          } catch {
-            toast.error('Erro ao remover item');
+          } catch (error: any) {
+            const msg = error?.response?.data?.message || 'Erro ao remover item';
+            toast.error(msg);
           }
           setItemToRemove(null);
         }}

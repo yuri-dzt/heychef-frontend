@@ -55,8 +55,9 @@ export default function Products() {
       toast.success('Produto criado');
       setIsProductModalOpen(false);
     },
-    onError: () => {
-      toast.error('Erro ao criar produto');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao criar produto';
+      toast.error(msg);
     },
   });
 
@@ -68,8 +69,9 @@ export default function Products() {
       toast.success('Produto atualizado');
       setIsProductModalOpen(false);
     },
-    onError: () => {
-      toast.error('Erro ao atualizar produto');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao atualizar produto';
+      toast.error(msg);
     },
   });
 
@@ -79,8 +81,9 @@ export default function Products() {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       toast.success('Produto excluído');
     },
-    onError: () => {
-      toast.error('Erro ao excluir produto');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao excluir produto';
+      toast.error(msg);
     },
   });
 
@@ -93,8 +96,9 @@ export default function Products() {
       queryClient.invalidateQueries({ queryKey: ['addon-groups'] });
       toast.success('Grupo vinculado');
     },
-    onError: () => {
-      toast.error('Erro ao vincular grupo');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao vincular grupo';
+      toast.error(msg);
     },
   });
 
@@ -106,8 +110,9 @@ export default function Products() {
       queryClient.invalidateQueries({ queryKey: ['addon-groups'] });
       toast.success('Grupo desvinculado');
     },
-    onError: () => {
-      toast.error('Erro ao desvincular grupo');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao desvincular grupo';
+      toast.error(msg);
     },
   });
 
@@ -317,6 +322,9 @@ export default function Products() {
                     </Badge>
                   </div>
                 }
+
+                {/* Hover Dim Overlay */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none" />
 
                 {/* Quick Actions Overlay */}
                 <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

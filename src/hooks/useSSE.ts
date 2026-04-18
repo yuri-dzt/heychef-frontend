@@ -3,11 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from './useNotification';
-
-const API_URL =
-  typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL
-    ? import.meta.env.VITE_API_URL
-    : 'http://localhost:3333';
+import { API_URL } from '../api/client';
 
 export function useSSE() {
   const { token, isAdmin } = useAuth();

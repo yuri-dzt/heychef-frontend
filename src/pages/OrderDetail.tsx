@@ -35,8 +35,9 @@ export default function OrderDetail() {
       queryClient.invalidateQueries({ queryKey: ['orders', id] });
       toast.success('Status atualizado com sucesso');
     },
-    onError: () => {
-      toast.error('Erro ao atualizar status');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao atualizar status';
+      toast.error(msg);
     },
   });
 
@@ -46,8 +47,9 @@ export default function OrderDetail() {
       queryClient.invalidateQueries({ queryKey: ['orders', id] });
       toast.success('Pedido cancelado');
     },
-    onError: () => {
-      toast.error('Erro ao cancelar pedido');
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao cancelar pedido';
+      toast.error(msg);
     },
   });
 

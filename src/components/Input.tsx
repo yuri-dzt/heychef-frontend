@@ -6,12 +6,13 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   rightIcon?: React.ReactNode;
 }
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, leftIcon, rightIcon, className = '', ...props }, ref) => {
+  ({ label, error, leftIcon, rightIcon, className = '', required, ...props }, ref) => {
     return (
       <div className="w-full">
         {label &&
         <label className="block text-sm font-medium text-text-primary mb-1.5">
             {label}
+            {required && <span className="text-danger ml-0.5">*</span>}
           </label>
         }
         <div className="relative">
@@ -22,8 +23,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           }
           <input
             ref={ref}
+            required={required}
             className={`
-              block w-full rounded-lg border bg-white px-3 py-2 text-text-primary 
+              block w-full rounded-lg border bg-white px-3 py-2 text-text-primary
               placeholder-text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary
               transition-colors duration-200 disabled:bg-gray-50 disabled:text-text-muted
               ${error ? 'border-danger focus:border-danger focus:ring-danger' : 'border-border'}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircleIcon, XIcon, ArrowLeftIcon, ArrowRightIcon } from 'lucide-react';
@@ -42,7 +42,7 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
       </div>
       <h1 className="text-3xl font-bold text-text-primary mb-4">Bem-vindo ao HeyChef!</h1>
       <p className="text-text-secondary text-lg mb-2">
-        Vamos configurar seu restaurante em poucos passos.
+        Vamos configurar seu estabelecimento em poucos passos.
       </p>
       <p className="text-text-muted mb-8">
         Você vai criar suas categorias de cardápio, adicionar produtos e configurar suas mesas.
@@ -405,6 +405,7 @@ function StepDone() {
   const navigate = useNavigate();
 
   const handleFinish = () => {
+    localStorage.removeItem('heychef_onboarding_step');
     navigate('/', { replace: true });
     // Force a full page reload so the user object refreshes with onboardingComplete = true
     window.location.reload();
@@ -417,7 +418,7 @@ function StepDone() {
       </div>
       <h1 className="text-3xl font-bold text-text-primary mb-4">Tudo pronto!</h1>
       <p className="text-text-secondary text-lg mb-2">
-        Seu restaurante está configurado.
+        Seu estabelecimento está configurado.
       </p>
       <p className="text-text-muted mb-8">
         Agora é só compartilhar o QR Code das mesas!
@@ -432,7 +433,14 @@ function StepDone() {
 // ─── MAIN ONBOARDING COMPONENT ─────────────────────────
 
 export default function Onboarding() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(() => {
+    const saved = localStorage.getItem('heychef_onboarding_step');
+    return saved ? parseInt(saved, 10) : 1;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('heychef_onboarding_step', String(step));
+  }, [step]);
 
   const goNext = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS));
   const goBack = () => setStep((s) => Math.max(s - 1, 1));

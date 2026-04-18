@@ -193,7 +193,7 @@ function SuperAdminDashboard() {
 
 // ─── RESTAURANT DASHBOARD ───────────────────────────────
 
-function RestaurantDashboard() {
+function OrganizationDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -334,5 +334,5 @@ export default function Dashboard() {
     return <SuperAdminDashboard />;
   }
 
-  return <RestaurantDashboard />;
+  return <OrganizationDashboard />;
 }
