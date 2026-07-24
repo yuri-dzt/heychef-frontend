@@ -29,7 +29,7 @@ export function DataTable<T>({
           <thead className="bg-gray-50 border-b border-border text-text-secondary font-medium">
             <tr>
               {columns.map((col, i) =>
-              <th key={i} className={`px-6 py-3 ${col.className || ''}`}>
+              <th key={i} scope="col" className={`px-6 py-3 ${col.className || ''}`}>
                   {col.header}
                 </th>
               )}
@@ -89,9 +89,9 @@ export function DataTable<T>({
               
                   {col.cell ?
               col.cell(item) :
-              col.accessorKey ?
+              col.accessorKey != null && item[col.accessorKey] != null ?
               String(item[col.accessorKey]) :
-              null}
+              '—'}
                 </td>
             )}
             </tr>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { DownloadIcon, CalendarIcon } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -17,6 +17,7 @@ import { Header } from '../components/Header';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { DataTable } from '../components/DataTable';
+import { ErrorState } from '../components/ErrorState';
 import { formatCurrency } from '../utils/format';
 import { reportsApi } from '../api/reports';
 import type { ReportDaily } from '../types';
@@ -44,7 +45,7 @@ export default function Reports() {
     () => new Date().toISOString().split('T')[0]
   );
 
-  const { data: reports = [], isLoading } = useQuery({
+  const { data: reports = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['reports', startDate, endDate],
     queryFn: () => reportsApi.getDaily(startDate, endDate),
   });
@@ -99,13 +100,57 @@ export default function Reports() {
   {
     header: 'Ticket Médio',
     cell: (row: ReportDaily) =>
-    formatCurrency(row.totalRevenueCents / row.totalOrders)
+    formatCurrency(row.totalOrders > 0 ? row.totalRevenueCents / row.totalOrders : 0)
   },
   {
     header: 'Receita Total',
-    className: 'text-right font-medium text-primary',
+    className: 'text-right font-medium text-primary-strong',
     cell: (row: ReportDaily) => formatCurrency(row.totalRevenueCents)
   }];
+
+  const chartData = useMemo(
+    () =>
+      [...reports].reverse().map((r) => {
+        const [, m, d] = r.date.split('-');
+        return {
+          date: `${d}/${m}`,
+          receita: r.totalRevenueCents,
+          pedidos: r.totalOrders,
+        };
+      }),
+    [reports]
+  );
+
+  if (isError) {
+    return (
+      <PageContainer>
+        <Header title="Relatórios" />
+        <ErrorState onRetry={() => refetch()} />
+      </PageContainer>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <PageContainer>
+        <Header title="Relatórios" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <div className="h-4 w-40 bg-gray-200 rounded animate-pulse mb-3" />
+              <div className="h-8 w-28 bg-gray-200 rounded animate-pulse" />
+            </Card>
+          ))}
+        </div>
+        <Card className="mb-6">
+          <div className="h-64 w-full bg-gray-200 rounded animate-pulse" />
+        </Card>
+        <Card>
+          <div className="h-40 w-full bg-gray-200 rounded animate-pulse" />
+        </Card>
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer>
@@ -167,18 +212,30 @@ export default function Reports() {
         </div>
       </Card>
 
+      {reports.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-xl border border-border">
+          <CalendarIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <h3 className="text-lg font-medium text-text-primary">
+            Nenhum dado no período
+          </h3>
+          <p className="text-text-secondary mt-1">
+            Ajuste as datas ou gere os relatórios para ver os resultados.
+          </p>
+        </div>
+      ) : (
+        <>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <Card className="bg-primary text-white border-none">
-          <p className="text-primary-light text-sm font-medium">
+        <Card>
+          <p className="text-text-secondary text-sm font-medium">
             Total de Pedidos (Período)
           </p>
-          <p className="text-3xl font-bold mt-1">{totals.orders}</p>
+          <p className="text-3xl font-bold mt-1 text-primary-strong">{totals.orders}</p>
         </Card>
-        <Card className="bg-green-600 text-white border-none">
-          <p className="text-green-100 text-sm font-medium">
+        <Card>
+          <p className="text-text-secondary text-sm font-medium">
             Receita Total (Período)
           </p>
-          <p className="text-3xl font-bold mt-1">
+          <p className="text-3xl font-bold mt-1 text-success">
             {formatCurrency(totals.revenue)}
           </p>
         </Card>
@@ -189,14 +246,7 @@ export default function Reports() {
         <h3 className="font-semibold text-text-primary mb-4">Receita por Dia</h3>
         <ResponsiveContainer width="100%" height={280}>
           <BarChart
-            data={[...reports].reverse().map((r) => ({
-              date: (() => {
-                const [y, m, d] = r.date.split('-');
-                return `${d}/${m}`;
-              })(),
-              receita: r.totalRevenueCents,
-              pedidos: r.totalOrders
-            }))}
+            data={chartData}
             barSize={24}>
             
             <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
@@ -218,7 +268,7 @@ export default function Reports() {
                   return (
                     <div className="bg-white p-3 rounded-lg shadow-lg border border-border">
                       <p className="text-sm font-medium text-text-primary mb-1">{label}</p>
-                      <p className="text-sm text-primary font-semibold">
+                      <p className="text-sm text-primary-strong font-semibold">
                         {formatCurrency(payload[0].value)}
                       </p>
                     </div>);
@@ -246,9 +296,11 @@ export default function Reports() {
         
         <div className="p-4 bg-gray-50 border-t border-border flex justify-between items-center font-bold">
           <span>Totais</span>
-          <span className="text-primary">{formatCurrency(totals.revenue)}</span>
+          <span className="text-primary-strong">{formatCurrency(totals.revenue)}</span>
         </div>
       </Card>
+        </>
+      )}
     </PageContainer>);
 
 }

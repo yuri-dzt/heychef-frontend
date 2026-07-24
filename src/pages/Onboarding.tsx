@@ -10,6 +10,7 @@ import { Select } from '../components/Select';
 import { categoriesApi } from '../api/categories';
 import { productsApi } from '../api/products';
 import { tablesApi } from '../api/tables';
+import { useAuth } from '../contexts/AuthContext';
 import type { Category, Product, Table } from '../types';
 
 const TOTAL_STEPS = 5;
@@ -22,7 +23,7 @@ function ProgressBar({ currentStep }: { currentStep: number }) {
         <span>Passo {currentStep} de {TOTAL_STEPS}</span>
         <span>{Math.round(progress)}%</span>
       </div>
-      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div className="w-full h-2 bg-border rounded-full overflow-hidden">
         <div
           className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
           style={{ width: `${progress}%` }}
@@ -106,6 +107,7 @@ function StepCategories({
 
       <div className="flex gap-3 mb-6">
         <Input
+          aria-label="Nome da categoria"
           placeholder="Nome da categoria"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -146,17 +148,22 @@ function StepCategories({
         </p>
       )}
 
-      <div className="flex justify-between">
+      <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={onBack} leftIcon={<ArrowLeftIcon className="w-4 h-4" />}>
           Voltar
         </Button>
-        <Button
-          onClick={onNext}
-          disabled={categories.length === 0}
-          rightIcon={<ArrowRightIcon className="w-4 h-4" />}
-        >
-          Próximo
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" onClick={onNext}>
+            Pular por agora
+          </Button>
+          <Button
+            onClick={onNext}
+            disabled={categories.length === 0}
+            rightIcon={<ArrowRightIcon className="w-4 h-4" />}
+          >
+            Próximo
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -190,6 +197,14 @@ function StepProducts({
       setProductName('');
       setPriceCents(0);
       setDescription('');
+      queryClient.invalidateQueries({ queryKey: ['onboarding-products'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: productsApi.delete,
+    onSuccess: (_data, id) => {
+      setAddedProducts((prev) => prev.filter((p) => p.id !== id));
       queryClient.invalidateQueries({ queryKey: ['onboarding-products'] });
     },
   });
@@ -275,7 +290,18 @@ function StepProducts({
                   {categories.find((c: Category) => c.id === prod.categoryId)?.name}
                 </span>
               </div>
-              <span className="font-medium text-primary">{formatPrice(prod.priceCents)}</span>
+              <div className="flex items-center gap-3">
+                <span className="font-medium text-primary">{formatPrice(prod.priceCents)}</span>
+                <button
+                  type="button"
+                  aria-label={`Remover ${prod.name}`}
+                  onClick={() => deleteMutation.mutate(prod.id)}
+                  className="text-text-muted hover:text-danger transition-colors p-1"
+                  disabled={deleteMutation.isPending}
+                >
+                  <XIcon className="w-4 h-4" aria-hidden="true" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -287,17 +313,22 @@ function StepProducts({
         </p>
       )}
 
-      <div className="flex justify-between">
+      <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={onBack} leftIcon={<ArrowLeftIcon className="w-4 h-4" />}>
           Voltar
         </Button>
-        <Button
-          onClick={onNext}
-          disabled={addedProducts.length === 0}
-          rightIcon={<ArrowRightIcon className="w-4 h-4" />}
-        >
-          Próximo
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" onClick={onNext}>
+            Pular por agora
+          </Button>
+          <Button
+            onClick={onNext}
+            disabled={addedProducts.length === 0}
+            rightIcon={<ArrowRightIcon className="w-4 h-4" />}
+          >
+            Próximo
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -350,6 +381,7 @@ function StepTables({
 
       <div className="flex gap-3 mb-6">
         <Input
+          aria-label="Nome da mesa"
           placeholder="Ex: Mesa 01"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -383,17 +415,22 @@ function StepTables({
         </p>
       )}
 
-      <div className="flex justify-between">
+      <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={onBack} leftIcon={<ArrowLeftIcon className="w-4 h-4" />}>
           Voltar
         </Button>
-        <Button
-          onClick={onNext}
-          disabled={tables.length === 0}
-          rightIcon={<ArrowRightIcon className="w-4 h-4" />}
-        >
-          Próximo
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" onClick={onNext}>
+            Pular por agora
+          </Button>
+          <Button
+            onClick={onNext}
+            disabled={tables.length === 0}
+            rightIcon={<ArrowRightIcon className="w-4 h-4" />}
+          >
+            Próximo
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -403,18 +440,22 @@ function StepTables({
 
 function StepDone() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { refreshUser } = useAuth();
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
     localStorage.removeItem('heychef_onboarding_step');
+    // Refresh the auth user (onboardingComplete lives in AuthContext, not react-query)
+    // and cached data, then SPA-navigate to the panel — no hard reload.
+    await refreshUser();
+    queryClient.invalidateQueries();
     navigate('/', { replace: true });
-    // Force a full page reload so the user object refreshes with onboardingComplete = true
-    window.location.reload();
   };
 
   return (
     <div className="text-center py-8">
-      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-        <CheckCircleIcon className="w-10 h-10 text-green-600" />
+      <div className="w-20 h-20 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-6">
+        <CheckCircleIcon className="w-10 h-10 text-success" />
       </div>
       <h1 className="text-3xl font-bold text-text-primary mb-4">Tudo pronto!</h1>
       <p className="text-text-secondary text-lg mb-2">
@@ -446,7 +487,7 @@ export default function Onboarding() {
   const goBack = () => setStep((s) => Math.max(s - 1, 1));
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       <div className="flex items-center gap-3 mb-6">
         <img src="/logo.svg" alt="HeyChef" className="w-10 h-10" />
         <span className="text-2xl font-bold text-text-primary tracking-tight">HeyChef</span>

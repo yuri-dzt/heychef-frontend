@@ -11,6 +11,7 @@ import { Input } from '../components/Input';
 import { Select } from '../components/Select';
 import { DataTable } from '../components/DataTable';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ErrorState } from '../components/ErrorState';
 import { formatDate } from '../utils/format';
 import { useAuth } from '../contexts/AuthContext';
 import { usersApi } from '../api/users';
@@ -19,7 +20,7 @@ import type { User, UserRole } from '../types';
 export default function Users() {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['users'],
     queryFn: usersApi.list,
   });
@@ -29,6 +30,7 @@ export default function Users() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('Usuário criado');
+      setIsModalOpen(false);
     },
     onError: (error: any) => {
       const msg = error?.response?.data?.message || 'Erro ao criar usuário';
@@ -42,6 +44,7 @@ export default function Users() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       toast.success('Usuário atualizado');
+      setIsModalOpen(false);
     },
     onError: (error: any) => {
       const msg = error?.response?.data?.message || 'Erro ao atualizar usuário';
@@ -68,9 +71,11 @@ export default function Users() {
     password: '',
     role: 'USER' as UserRole
   });
+  const [formErrors, setFormErrors] = useState<{ name?: string; email?: string; password?: string }>({});
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
   const handleOpenModal = (user?: User) => {
+    setFormErrors({});
     if (user) {
       setEditingUser(user);
       setFormData({
@@ -91,7 +96,22 @@ export default function Users() {
     setIsModalOpen(true);
   };
   const handleSave = () => {
-    if (!formData.name || !formData.email) return;
+    const errors: { name?: string; email?: string; password?: string } = {};
+    if (!formData.name.trim()) {
+      errors.name = 'Informe o nome do usuário';
+    }
+    if (!formData.email.trim()) {
+      errors.email = 'Informe o email do usuário';
+    }
+    if (!editingUser && !formData.password) {
+      errors.password = 'Senha é obrigatória para novos usuários';
+    }
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
+
     if (editingUser) {
       const data: Parameters<typeof usersApi.update>[1] = {
         name: formData.name,
@@ -103,10 +123,6 @@ export default function Users() {
       }
       updateMutation.mutate({ id: editingUser.id, data });
     } else {
-      if (!formData.password) {
-        toast.error('Senha é obrigatória para novos usuários');
-        return;
-      }
       createMutation.mutate({
         name: formData.name,
         email: formData.email,
@@ -114,7 +130,6 @@ export default function Users() {
         role: formData.role as 'ADMIN' | 'SUPPORT' | 'USER',
       });
     }
-    setIsModalOpen(false);
   };
   const handleDelete = () => {
     if (userToDelete) {
@@ -162,20 +177,24 @@ export default function Users() {
       return (
         <div className="flex justify-end gap-2">
             <button
+            type="button"
+            aria-label={`Editar ${user.name}`}
             onClick={() => handleOpenModal(user)}
-            className="p-2 text-text-secondary hover:text-primary hover:bg-primary-light rounded-md transition-colors">
-            
-              <Edit2Icon className="w-4 h-4" />
+            className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-text-secondary hover:text-primary hover:bg-primary-light rounded-md transition-colors">
+
+              <Edit2Icon className="w-4 h-4" aria-hidden="true" />
             </button>
             {user.id !== currentUser?.id &&
           <button
+            type="button"
+            aria-label={`Excluir ${user.name}`}
             onClick={() => {
               setUserToDelete(user.id);
               setDeleteModalOpen(true);
             }}
-            className="p-2 text-text-secondary hover:text-danger hover:bg-red-50 rounded-md transition-colors">
-            
-                <Trash2Icon className="w-4 h-4" />
+            className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] text-text-secondary hover:text-danger hover:bg-red-50 rounded-md transition-colors">
+
+                <Trash2Icon className="w-4 h-4" aria-hidden="true" />
               </button>
           }
           </div>);
@@ -197,11 +216,14 @@ export default function Users() {
         } />
       
 
+      {isError ?
+      <ErrorState onRetry={refetch} /> :
       <DataTable
         data={users}
         columns={columns}
         keyExtractor={(user) => user.id} />
-      
+      }
+
 
       <Modal
         isOpen={isModalOpen}
@@ -220,37 +242,36 @@ export default function Users() {
           <Input
             label="Nome"
             value={formData.name}
-            onChange={(e) =>
-            setFormData({
-              ...formData,
-              name: e.target.value
-            })
-            }
+            error={formErrors.name}
+            onChange={(e) => {
+              setFormData({ ...formData, name: e.target.value });
+              if (formErrors.name) setFormErrors((prev) => ({ ...prev, name: undefined }));
+            }}
             required />
-          
+
           <Input
             label="Email"
             type="email"
             value={formData.email}
-            onChange={(e) =>
-            setFormData({
-              ...formData,
-              email: e.target.value
-            })
-            }
+            error={formErrors.email}
+            autoComplete="email"
+            onChange={(e) => {
+              setFormData({ ...formData, email: e.target.value });
+              if (formErrors.email) setFormErrors((prev) => ({ ...prev, email: undefined }));
+            }}
             required />
-          
+
           {!editingUser &&
           <Input
             label="Senha"
             type="password"
             value={formData.password}
-            onChange={(e) =>
-            setFormData({
-              ...formData,
-              password: e.target.value
-            })
-            }
+            error={formErrors.password}
+            autoComplete="new-password"
+            onChange={(e) => {
+              setFormData({ ...formData, password: e.target.value });
+              if (formErrors.password) setFormErrors((prev) => ({ ...prev, password: undefined }));
+            }}
             required />
 
           }
@@ -261,6 +282,10 @@ export default function Users() {
               {
                 value: 'USER',
                 label: 'Usuário (Garçom/Atendente)'
+              },
+              {
+                value: 'SUPPORT',
+                label: 'Suporte (acesso por permissões)'
               },
               {
                 value: 'ADMIN',

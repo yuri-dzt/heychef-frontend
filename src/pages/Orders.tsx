@@ -23,6 +23,8 @@ import { Button } from '../components/Button';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { Modal } from '../components/Modal';
 import { StatusBadge } from '../components/StatusBadge';
+import { ErrorState } from '../components/ErrorState';
+import { Skeleton } from '../components/Skeleton';
 import { formatCurrency, shortOrderId, getRelativeTime } from '../utils/format';
 import { ordersApi } from '../api/orders';
 import { useNotification } from '../hooks/useNotification';
@@ -34,10 +36,10 @@ const COLUMNS: {
   color: string;
   nextStatus?: OrderStatus;
 }[] = [
-  { id: 'RECEIVED', title: 'Recebidos', color: 'bg-blue-500', nextStatus: 'PREPARING' },
-  { id: 'PREPARING', title: 'Preparando', color: 'bg-yellow-500', nextStatus: 'READY' },
+  { id: 'RECEIVED', title: 'Recebidos', color: 'bg-info', nextStatus: 'PREPARING' },
+  { id: 'PREPARING', title: 'Preparando', color: 'bg-warning', nextStatus: 'READY' },
   { id: 'READY', title: 'Prontos', color: 'bg-primary', nextStatus: 'DELIVERED' },
-  { id: 'DELIVERED', title: 'Entregues', color: 'bg-green-500' },
+  { id: 'DELIVERED', title: 'Entregues', color: 'bg-success' },
 ];
 
 const STATUS_ORDER: OrderStatus[] = ['RECEIVED', 'PREPARING', 'READY', 'DELIVERED'];
@@ -46,6 +48,7 @@ export default function Orders() {
   const queryClient = useQueryClient();
   const { permission, requestPermission } = useNotification();
   const [filterTable, setFilterTable] = useState('all');
+  const [mobileStatus, setMobileStatus] = useState<OrderStatus>('RECEIVED');
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
   const [detailOrderId, setDetailOrderId] = useState<string | null>(null);
@@ -78,7 +81,7 @@ export default function Orders() {
     scrollRef.current?.scrollBy({ left: dir * 340, behavior: 'smooth' });
   };
 
-  const { data: orders = [], isLoading } = useQuery({
+  const { data: orders = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['orders'],
     queryFn: () => ordersApi.list(),
     refetchInterval: 30_000,
@@ -153,6 +156,10 @@ export default function Orders() {
     return true;
   });
 
+  // Mobile single-column view: orders for the selected status + its advance target
+  const mobileColumn = COLUMNS.find((c) => c.id === mobileStatus);
+  const mobileOrders = filteredOrders.filter((o) => o.status === mobileStatus);
+
   return (
     <PageContainer
       maxWidth="full"
@@ -179,6 +186,7 @@ export default function Orders() {
             <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-border">
               <FilterIcon className="w-4 h-4 text-text-muted" />
               <select
+                aria-label="Filtrar por mesa"
                 className="bg-transparent text-sm font-medium focus:outline-none"
                 value={filterTable}
                 onChange={(e) => setFilterTable(e.target.value)}
@@ -201,15 +209,174 @@ export default function Orders() {
         }
       />
 
-      {/* Kanban Board with scroll arrows */}
-      <div className="flex-1 relative">
+      {/* Orders board */}
+      <div className="flex-1 relative overflow-hidden">
+        {isError ? (
+          <div className="h-full flex items-center justify-center">
+            <ErrorState onRetry={() => refetch()} />
+          </div>
+        ) : isLoading ? (
+          <div className="h-full overflow-hidden">
+            {/* Mobile loading skeleton */}
+            <div className="md:hidden space-y-3 px-1 pt-1">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="bg-white p-4 rounded-lg border border-border space-y-2"
+                >
+                  <Skeleton height={20} width="40%" />
+                  <Skeleton height={14} width="65%" />
+                  <Skeleton height={36} className="mt-1" />
+                </div>
+              ))}
+            </div>
+            {/* Desktop loading skeleton */}
+            <div className="hidden md:flex gap-6 h-full">
+              {COLUMNS.map((column) => (
+                <div
+                  key={column.id}
+                  className="w-80 flex flex-col rounded-xl border border-border bg-gray-50/50 overflow-hidden"
+                >
+                  <div className="p-4 border-b border-border bg-white flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full ${column.color}`} />
+                    <Skeleton height={16} width={110} />
+                  </div>
+                  <div className="p-3 space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="bg-white p-4 rounded-lg border border-border space-y-2"
+                      >
+                        <Skeleton height={20} width="50%" />
+                        <Skeleton height={14} width="70%" />
+                        <Skeleton height={32} className="mt-1" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+        <>
+        {/* Mobile: single-column list with status filter */}
+        <div className="md:hidden h-full flex flex-col">
+          <div className="flex gap-2 overflow-x-auto pb-3 px-1" role="tablist" aria-label="Filtrar por status">
+            {COLUMNS.map((column) => {
+              const count = filteredOrders.filter((o) => o.status === column.id).length;
+              const active = mobileStatus === column.id;
+              return (
+                <button
+                  key={column.id}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setMobileStatus(column.id)}
+                  className={`flex items-center gap-2 whitespace-nowrap px-3 py-2 rounded-full text-sm font-medium border transition-colors ${
+                    active
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-white text-text-secondary border-border'
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${active ? 'bg-white' : column.color}`}
+                    aria-hidden="true"
+                  />
+                  {column.title}
+                  <span
+                    className={`text-xs font-bold px-1.5 rounded-full ${
+                      active ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex-1 overflow-y-auto space-y-3 px-1 pb-4">
+            {mobileOrders.length === 0 ? (
+              <div className="h-32 flex items-center justify-center text-text-muted text-sm border-2 border-dashed border-gray-200 rounded-lg">
+                Nenhum pedido
+              </div>
+            ) : (
+              mobileOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className="bg-white p-4 rounded-lg border border-border shadow-sm"
+                >
+                  <div
+                    className="cursor-pointer"
+                    onClick={() => setDetailOrderId(order.id)}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <span className="font-bold text-lg text-text-primary">
+                          {order.table?.name}
+                        </span>
+                        {order.customerName && (
+                          <p className="text-sm text-text-secondary">
+                            {order.customerName}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center text-text-muted text-xs bg-gray-50 px-2 py-1 rounded">
+                        <ClockIcon className="w-3 h-3 mr-1" aria-hidden="true" />
+                        {getRelativeTime(order.createdAt)}
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <p className="text-sm text-text-secondary truncate mr-2">
+                        {order.items?.length || 0}{' '}
+                        {order.items?.length === 1 ? 'item' : 'itens'}
+                      </p>
+                      <span className="font-semibold text-text-primary whitespace-nowrap">
+                        {formatCurrency(order.totalCents)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-3 border-t border-gray-100 mt-3">
+                    {mobileColumn?.nextStatus && (
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        onClick={() =>
+                          handleAdvanceStatus(order.id, mobileColumn.nextStatus!)
+                        }
+                        rightIcon={<ArrowRightIcon className="w-4 h-4" />}
+                      >
+                        Avançar
+                      </Button>
+                    )}
+                    {order.status !== 'DELIVERED' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Cancelar pedido"
+                        className="text-danger hover:bg-red-50 hover:text-danger p-2.5 min-h-[44px] min-w-[44px]"
+                        onClick={() => handleCancelClick(order.id)}
+                      >
+                        <XCircleIcon className="w-5 h-5" aria-hidden="true" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Desktop: drag-and-drop Kanban */}
+        <div className="hidden md:block h-full relative">
         {/* Left arrow */}
         {showLeftArrow && (
           <button
             onClick={() => scrollBy(-1)}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white border border-border rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+            aria-label="Rolar para a esquerda"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-white border border-border rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
           >
-            <ChevronLeftIcon className="w-5 h-5 text-text-primary" />
+            <ChevronLeftIcon className="w-5 h-5 text-text-primary" aria-hidden="true" />
           </button>
         )}
 
@@ -217,9 +384,10 @@ export default function Orders() {
         {showRightArrow && (
           <button
             onClick={() => scrollBy(1)}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-white border border-border rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
+            aria-label="Rolar para a direita"
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 bg-white border border-border rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors"
           >
-            <ChevronRightIcon className="w-5 h-5 text-text-primary" />
+            <ChevronRightIcon className="w-5 h-5 text-text-primary" aria-hidden="true" />
           </button>
         )}
 
@@ -329,14 +497,15 @@ export default function Orders() {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="text-danger hover:bg-red-50 hover:text-danger px-2"
+                                        aria-label="Cancelar pedido"
+                                        className="text-danger hover:bg-red-50 hover:text-danger p-2.5 min-h-[44px] min-w-[44px]"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleCancelClick(order.id);
                                         }}
                                         title="Cancelar pedido"
                                       >
-                                        <XCircleIcon className="w-5 h-5" />
+                                        <XCircleIcon className="w-5 h-5" aria-hidden="true" />
                                       </Button>
                                     )}
                                   </div>
@@ -360,6 +529,9 @@ export default function Orders() {
             </div>
           </DragDropContext>
         </div>
+        </div>
+        </>
+        )}
       </div>
 
       {/* Order Detail Modal */}
@@ -431,7 +603,7 @@ export default function Orders() {
                                 toast.error(msg);
                               }
                             }}
-                            className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white border border-current text-primary hover:bg-primary hover:text-white transition-colors whitespace-nowrap"
+                            className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white border border-current text-primary-strong hover:bg-primary hover:text-white transition-colors whitespace-nowrap"
                           >
                             {cfg.nextLabel}
                           </button>

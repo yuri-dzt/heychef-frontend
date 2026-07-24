@@ -6,6 +6,7 @@ import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { DataTable, Column } from '../components/DataTable';
 import { Badge } from '../components/Badge';
+import { ErrorState } from '../components/ErrorState';
 import { auditApi, AuditLogEntry } from '../api/audit';
 
 const ACTION_LABELS: Record<string, string> = {
@@ -44,7 +45,7 @@ function formatDateTime(ts: number): string {
 }
 
 export default function AuditLog() {
-  const { data: logs = [], isLoading } = useQuery({
+  const { data: logs = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['audit'],
     queryFn: () => auditApi.list(),
   });
@@ -100,15 +101,21 @@ export default function AuditLog() {
     <PageContainer>
       <Header title="Registro de Atividades" />
 
-      <Card noPadding className="overflow-hidden">
-        <DataTable
-          data={logs}
-          columns={columns}
-          isLoading={isLoading}
-          emptyMessage="Nenhuma atividade registrada."
-          keyExtractor={(row) => row.id}
-        />
-      </Card>
+      {isError ? (
+        <Card>
+          <ErrorState onRetry={refetch} />
+        </Card>
+      ) : (
+        <Card noPadding className="overflow-hidden">
+          <DataTable
+            data={logs}
+            columns={columns}
+            isLoading={isLoading}
+            emptyMessage="Nenhuma atividade registrada."
+            keyExtractor={(row) => row.id}
+          />
+        </Card>
+      )}
     </PageContainer>
   );
 }

@@ -1,4 +1,5 @@
 import React, { Fragment } from 'react';
+import { Link } from 'react-router-dom';
 import { ChevronRightIcon } from 'lucide-react';
 interface HeaderProps {
   title: string;
@@ -13,17 +14,17 @@ export function Header({ title, breadcrumbs, actions }: HeaderProps) {
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
       <div>
         {breadcrumbs && breadcrumbs.length > 0 &&
-        <nav className="flex items-center text-sm text-text-muted mb-1">
+        <nav aria-label="Trilha de navegação" className="flex items-center text-sm text-text-muted mb-1">
             {breadcrumbs.map((crumb, index) =>
           <Fragment key={index}>
-                {index > 0 && <ChevronRightIcon className="w-4 h-4 mx-1" />}
+                {index > 0 && <ChevronRightIcon className="w-4 h-4 mx-1" aria-hidden="true" />}
                 {crumb.href ?
-            <a
-              href={crumb.href}
+            <Link
+              to={crumb.href}
               className="hover:text-primary transition-colors">
-              
+
                     {crumb.label}
-                  </a> :
+                  </Link> :
 
             <span className="text-text-secondary">{crumb.label}</span>
             }

@@ -82,9 +82,10 @@ export function ImageUpload({ value, onChange, label }: ImageUploadProps) {
           <button
             type="button"
             onClick={() => onChange('')}
-            className="absolute top-2 right-2 p-1 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
+            aria-label="Remover imagem"
+            className="absolute top-2 right-2 p-2 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
           >
-            <XIcon className="w-4 h-4" />
+            <XIcon className="w-4 h-4" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -92,11 +93,20 @@ export function ImageUpload({ value, onChange, label }: ImageUploadProps) {
       {/* Upload mode */}
       {mode === 'upload' && !value && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Enviar imagem: arraste um arquivo ou pressione Enter para selecionar"
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
           onClick={() => fileRef.current?.click()}
-          className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              fileRef.current?.click();
+            }
+          }}
+          className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
             dragOver ? 'border-primary bg-primary-light' : 'border-gray-200 hover:border-primary/50 hover:bg-gray-50'
           }`}
         >
@@ -136,6 +146,7 @@ export function ImageUpload({ value, onChange, label }: ImageUploadProps) {
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder="https://exemplo.com/imagem.jpg"
+            aria-label="URL da imagem"
             className="w-full rounded-lg border border-border p-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
           />
           {value && (

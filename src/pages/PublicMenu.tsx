@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -76,6 +76,9 @@ export default function PublicMenu() {
   const [notes, setNotes] = useState('');
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderId, setOrderId] = useState('');
+  const activeOrderSheetRef = useRef<HTMLDivElement>(null);
+  const productSheetRef = useRef<HTMLDivElement>(null);
+  const cartSheetRef = useRef<HTMLDivElement>(null);
 
   // Set initial active category once menu loads
   useEffect(() => {
@@ -84,36 +87,40 @@ export default function PublicMenu() {
     }
   }, [menu, activeCategory]);
 
-  // Scroll spy for categories
+  // Auto-dismiss the success screen after 3s and return to the menu
   useEffect(() => {
-    if (!menu) return;
-    const handleScroll = () => {
-      const sections = menu.categories.map((c) =>
-      document.getElementById(`category-${c.id}`)
-      );
-      const scrollPosition = window.scrollY + 150; // Offset for header
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const section = sections[i];
-        if (section && section.offsetTop <= scrollPosition) {
-          setActiveCategory(menu.categories[i].id);
-          break;
-        }
-      }
+    if (!orderSuccess) return;
+    const timer = setTimeout(() => {
+      setOrderSuccess(false);
+      refetchActiveOrder();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [orderSuccess, refetchActiveOrder]);
+
+  // Bottom-sheet dialogs: close the topmost one on Escape
+  useEffect(() => {
+    if (!showActiveOrder && !selectedProduct && !isCartOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (selectedProduct) setSelectedProduct(null);
+      else if (isCartOpen) setIsCartOpen(false);
+      else if (showActiveOrder) setShowActiveOrder(false);
     };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [menu]);
-  const scrollToCategory = (id: string) => {
-    setActiveCategory(id);
-    const element = document.getElementById(`category-${id}`);
-    if (element) {
-      const y = element.getBoundingClientRect().top + window.scrollY - 120;
-      window.scrollTo({
-        top: y,
-        behavior: 'smooth'
-      });
-    }
-  };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showActiveOrder, selectedProduct, isCartOpen]);
+
+  // Move focus into each sheet when it opens
+  useEffect(() => {
+    if (showActiveOrder) activeOrderSheetRef.current?.focus();
+  }, [showActiveOrder]);
+  useEffect(() => {
+    if (selectedProduct) productSheetRef.current?.focus();
+  }, [selectedProduct]);
+  useEffect(() => {
+    if (isCartOpen) cartSheetRef.current?.focus();
+  }, [isCartOpen]);
+
   const openProductModal = (product: PublicProduct) => {
     setSelectedProduct(product);
     setQuantity(1);
@@ -305,22 +312,16 @@ export default function PublicMenu() {
           <XIcon className="w-10 h-10 text-red-600" />
         </div>
         <h1 className="text-2xl font-bold text-text-primary mb-2">
-          Mesa nao encontrada
+          Mesa não encontrada
         </h1>
         <p className="text-text-secondary mb-8">
-          O link que voce acessou e invalido ou expirou. Peca ajuda a um atendente.
+          O link que você acessou é inválido ou expirou. Peça ajuda a um atendente.
         </p>
       </div>
     );
   }
 
   if (orderSuccess) {
-    // Auto-dismiss after 3s and go back to menu
-    setTimeout(() => {
-      setOrderSuccess(false);
-      refetchActiveOrder();
-    }, 3000);
-
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-surface">
         <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-6">
@@ -349,10 +350,12 @@ export default function PublicMenu() {
           </div>
           <button
             onClick={callWaiter}
-            className="p-2 bg-gray-100 rounded-full text-text-secondary hover:bg-gray-200 transition-colors"
+            disabled={waiterMutation.isPending}
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center bg-gray-100 rounded-full text-text-secondary hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="Chamar garçom"
             title="Chamar Garçom">
 
-            <BellIcon className="w-5 h-5" />
+            <BellIcon className="w-5 h-5" aria-hidden="true" />
           </button>
         </div>
 
@@ -364,14 +367,14 @@ export default function PublicMenu() {
           >
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span className="text-sm font-medium text-primary">
+              <span className="text-sm font-medium text-primary-strong">
                 Pedido em andamento
               </span>
               <span className="text-xs text-text-muted">
                 ({activeOrder.items.length} {activeOrder.items.length === 1 ? 'item' : 'itens'})
               </span>
             </div>
-            <span className="text-sm font-bold text-primary">
+            <span className="text-sm font-bold text-primary-strong">
               {formatCurrency(activeOrder.totalCents)}
             </span>
           </button>
@@ -385,7 +388,7 @@ export default function PublicMenu() {
               key={category.id}
               onClick={() => setActiveCategory(category.id)}
               className={`
-                whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-medium transition-colors
+                whitespace-nowrap px-4 min-h-[44px] inline-flex items-center rounded-full text-sm font-medium transition-colors
                 ${activeCategory === category.id ? 'bg-primary text-white' : 'bg-gray-100 text-text-secondary hover:bg-gray-200'}
               `}>
 
@@ -404,7 +407,6 @@ export default function PublicMenu() {
         .map((category) =>
         <div
           key={category.id}
-          id={`category-${category.id}`}
           className="mb-8 pt-4">
 
             <h2 className="text-xl font-bold text-text-primary mb-4">
@@ -413,11 +415,13 @@ export default function PublicMenu() {
 
             <div className="space-y-4">
               {category.products.map((product) =>
-            <div
+            <button
+              type="button"
               key={product.id}
-              className="bg-white rounded-xl border border-border p-4 flex gap-4 cursor-pointer hover:border-primary transition-colors shadow-sm"
+              aria-label={product.name}
+              className="w-full text-left bg-white rounded-xl border border-border p-4 flex gap-4 cursor-pointer hover:border-primary focus-visible:ring-2 focus-visible:ring-primary transition-colors shadow-sm"
               onClick={() => openProductModal(product)}>
-              
+
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-text-primary truncate">
                       {product.name}
@@ -430,7 +434,7 @@ export default function PublicMenu() {
                         {product.ingredients.join(' \u2022 ')}
                       </p>
                     )}
-                    <p className="font-bold text-primary mt-2">
+                    <p className="font-bold text-primary-strong mt-2">
                       {formatCurrency(product.priceCents)}
                     </p>
                   </div>
@@ -439,11 +443,13 @@ export default function PublicMenu() {
                       <img
                   src={product.imageUrl}
                   alt={product.name}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover" />
-                
+
                     </div>
               }
-                </div>
+                </button>
             )}
             </div>
           </div>
@@ -482,11 +488,16 @@ export default function PublicMenu() {
               onClick={() => setShowActiveOrder(false)}
             />
             <motion.div
+              ref={activeOrderSheetRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Pedido atual"
+              tabIndex={-1}
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-2xl max-h-[80vh] overflow-y-auto"
+              className="fixed bottom-0 left-0 right-0 z-50 bg-surface rounded-t-2xl max-h-[80vh] overflow-y-auto focus:outline-none"
             >
               <div className="sticky top-0 bg-surface px-4 pt-4 pb-2 border-b border-border">
                 <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-3" />
@@ -497,10 +508,10 @@ export default function PublicMenu() {
                 {activeOrder.items.map((item) => {
                   const itemStatus = item.status || 'PENDING';
                   const statusConfig = {
-                    PENDING: { label: 'Aguardando', color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' },
-                    PREPARING: { label: 'Preparando', color: 'bg-yellow-50 text-yellow-700', dot: 'bg-yellow-400 animate-pulse' },
-                    READY: { label: 'Pronto!', color: 'bg-green-50 text-green-700', dot: 'bg-green-500' },
-                  }[itemStatus] || { label: itemStatus, color: 'bg-gray-100 text-gray-600', dot: 'bg-gray-400' };
+                    PENDING: { label: 'Aguardando', color: 'bg-gray-100 text-text-secondary', dot: 'bg-gray-400' },
+                    PREPARING: { label: 'Preparando', color: 'bg-warning/10 text-warning', dot: 'bg-warning animate-pulse' },
+                    READY: { label: 'Pronto!', color: 'bg-success/10 text-success', dot: 'bg-success' },
+                  }[itemStatus] || { label: itemStatus, color: 'bg-gray-100 text-text-secondary', dot: 'bg-gray-400' };
 
                   const canRemove = itemStatus === 'PENDING';
 
@@ -533,9 +544,10 @@ export default function PublicMenu() {
                           {canRemove && (
                             <button
                               onClick={() => setItemToRemove(item.id)}
-                              className="p-1.5 rounded-lg bg-white/60 hover:bg-red-100 text-red-500 transition-colors"
+                              aria-label={`Remover ${item.productName}`}
+                              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/60 hover:bg-red-100 text-red-500 transition-colors"
                             >
-                              <XIcon className="w-4 h-4" />
+                              <XIcon className="w-4 h-4" aria-hidden="true" />
                             </button>
                           )}
                         </div>
@@ -582,6 +594,11 @@ export default function PublicMenu() {
             onClick={() => setSelectedProduct(null)} />
           
             <motion.div
+            ref={productSheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={selectedProduct.name}
+            tabIndex={-1}
             initial={{
               y: '100%'
             }}
@@ -596,23 +613,26 @@ export default function PublicMenu() {
               damping: 25,
               stiffness: 300
             }}
-            className="fixed inset-x-0 bottom-0 z-50 bg-surface rounded-t-2xl max-h-[90vh] flex flex-col max-w-[480px] mx-auto">
-            
+            className="fixed inset-x-0 bottom-0 z-50 bg-surface rounded-t-2xl max-h-[90vh] flex flex-col max-w-[480px] mx-auto focus:outline-none">
+
               <div className="relative">
                 {selectedProduct.imageUrl &&
               <div className="w-full h-48 bg-gray-100 rounded-t-2xl overflow-hidden">
                     <img
                   src={selectedProduct.imageUrl}
                   alt={selectedProduct.name}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover" />
-                
+
                   </div>
               }
                 <button
                 onClick={() => setSelectedProduct(null)}
-                className="absolute top-4 right-4 w-8 h-8 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-text-primary shadow-sm">
-                
-                  <XIcon className="w-5 h-5" />
+                aria-label="Fechar"
+                className="absolute top-4 right-4 w-11 h-11 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center text-text-primary shadow-sm">
+
+                  <XIcon className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
 
@@ -623,12 +643,7 @@ export default function PublicMenu() {
                 <p className="text-text-secondary mt-2 text-sm leading-relaxed">
                   {selectedProduct.description}
                 </p>
-                {selectedProduct.ingredients && selectedProduct.ingredients.length > 0 && (
-                  <p className="text-xs text-text-muted mt-1">
-                    {selectedProduct.ingredients.join(' \u2022 ')}
-                  </p>
-                )}
-                <p className="text-xl font-bold text-primary mt-3">
+                <p className="text-xl font-bold text-primary-strong mt-3">
                   {formatCurrency(selectedProduct.priceCents)}
                 </p>
 
@@ -671,8 +686,10 @@ export default function PublicMenu() {
                 {selectedProduct.addonGroups?.map((group) =>
               <div
                 key={group.id}
+                role={group.maxSelect === 1 ? 'radiogroup' : 'group'}
+                aria-label={group.name}
                 className="mt-6 pt-6 border-t border-border">
-                
+
                     <div className="flex justify-between items-end mb-3">
                       <div>
                         <h3 className="font-bold text-text-primary">
@@ -701,7 +718,7 @@ export default function PublicMenu() {
                     return (
                       <label
                         key={item.id}
-                        className="flex items-center justify-between p-3 border border-border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                        className="flex items-center justify-between p-3 border border-border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
                         
                             <div className="flex items-center gap-3">
                               <div
@@ -729,7 +746,7 @@ export default function PublicMenu() {
                         }
                             <input
                           type={isRadio ? 'radio' : 'checkbox'}
-                          className="hidden"
+                          className="sr-only"
                           checked={isSelected}
                           onChange={() =>
                           toggleAddon(group.id, item, isRadio)
@@ -795,6 +812,11 @@ export default function PublicMenu() {
             onClick={() => setIsCartOpen(false)} />
           
             <motion.div
+            ref={cartSheetRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Seu pedido"
+            tabIndex={-1}
             initial={{
               y: '100%'
             }}
@@ -809,18 +831,19 @@ export default function PublicMenu() {
               damping: 25,
               stiffness: 300
             }}
-            className="fixed inset-x-0 bottom-0 z-50 bg-surface rounded-t-2xl h-[85vh] flex flex-col max-w-[480px] mx-auto">
-            
+            className="fixed inset-x-0 bottom-0 z-50 bg-surface rounded-t-2xl h-[85vh] flex flex-col max-w-[480px] mx-auto focus:outline-none">
+
               <div className="p-4 border-b border-border flex items-center justify-between bg-white rounded-t-2xl">
                 <h2 className="text-xl font-bold text-text-primary flex items-center gap-2">
-                  <ShoppingBagIcon className="w-5 h-5" />
+                  <ShoppingBagIcon className="w-5 h-5" aria-hidden="true" />
                   Seu Pedido
                 </h2>
                 <button
                 onClick={() => setIsCartOpen(false)}
-                className="p-2 text-text-secondary hover:bg-gray-100 rounded-full">
-                
-                  <XIcon className="w-5 h-5" />
+                aria-label="Fechar"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center text-text-secondary hover:bg-gray-100 rounded-full">
+
+                  <XIcon className="w-5 h-5" aria-hidden="true" />
                 </button>
               </div>
 
@@ -879,28 +902,31 @@ export default function PublicMenu() {
 
                     <div className="bg-white rounded-xl border border-border p-4 space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-text-primary mb-1.5">
+                        <label htmlFor="order-customer-name" className="block text-sm font-medium text-text-primary mb-1.5">
                           Seu Nome (Opcional)
                         </label>
                         <input
+                      id="order-customer-name"
                       type="text"
+                      autoComplete="name"
                       placeholder="Como gostaria de ser chamado?"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-                    
+
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-text-primary mb-1.5">
+                        <label htmlFor="order-notes" className="block text-sm font-medium text-text-primary mb-1.5">
                           Observações (Opcional)
                         </label>
                         <textarea
+                      id="order-notes"
                       placeholder="Ex: Tirar cebola, maionese à parte..."
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       rows={2}
                       className="w-full rounded-lg border border-border px-3 py-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none" />
-                    
+
                       </div>
                     </div>
                   </div>

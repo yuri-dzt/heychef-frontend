@@ -16,6 +16,7 @@ import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ErrorState } from '../components/ErrorState';
 import { Modal } from '../components/Modal';
 import { Input } from '../components/Input';
 import { Select } from '../components/Select';
@@ -41,6 +42,10 @@ export default function AdminOrganizations() {
   const [expandedOrg, setExpandedOrg] = useState<string | null>(null);
   const [renewOrg, setRenewOrg] = useState<string | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [planDrafts, setPlanDrafts] = useState<Record<string, string>>({});
+  const [planConfirm, setPlanConfirm] = useState<
+    { orgId: string; orgName: string; planId: string } | null
+  >(null);
   const [createForm, setCreateForm] = useState({
     name: '',
     adminName: '',
@@ -49,7 +54,7 @@ export default function AdminOrganizations() {
     planId: '',
   });
 
-  const { data: organizations = [], isLoading } = useQuery({
+  const { data: organizations = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['organizations'],
     queryFn: organizationsApi.list,
   });
@@ -79,6 +84,7 @@ export default function AdminOrganizations() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organizations'] });
       toast.success('Plano atribuído');
+      setPlanConfirm(null);
     },
     onError: (error: any) => {
       const msg = error?.response?.data?.message || 'Erro ao atribuir plano';
@@ -99,12 +105,29 @@ export default function AdminOrganizations() {
     },
   });
 
+  if (isError) {
+    return (
+      <PageContainer>
+        <Header title="Estabelecimentos" />
+        <ErrorState onRetry={() => refetch()} />
+      </PageContainer>
+    );
+  }
+
   if (isLoading) {
     return (
       <PageContainer>
         <Header title="Estabelecimentos" />
-        <div className="flex items-center justify-center py-12">
-          <div className="text-text-muted">Carregando estabelecimentos...</div>
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-5 flex items-center gap-4">
+              <div className="w-12 h-12 bg-gray-200 rounded-xl animate-pulse" />
+              <div className="flex-1">
+                <div className="h-5 w-48 bg-gray-200 rounded animate-pulse mb-2" />
+                <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+              </div>
+            </Card>
+          ))}
         </div>
       </PageContainer>
     );
@@ -131,17 +154,20 @@ export default function AdminOrganizations() {
           return (
             <Card key={org.id} className="overflow-hidden" noPadding>
               {/* Main row */}
-              <div
-                className="p-5 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
-                onClick={() => setExpandedOrg(isExpanded ? null : org.id)}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                    <BuildingIcon className="w-6 h-6 text-primary" />
+              <div className="p-5 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedOrg(isExpanded ? null : org.id)}
+                  aria-expanded={isExpanded}
+                  aria-label={`${org.name} — ${isExpanded ? 'ocultar' : 'mostrar'} detalhes`}
+                  className="flex items-center gap-4 flex-1 min-w-0 text-left -m-2 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <BuildingIcon className="w-6 h-6 text-primary" aria-hidden="true" />
                   </div>
-                  <div>
-                    <h3 className="font-bold text-text-primary text-lg">{org.name}</h3>
-                    <div className="flex items-center gap-3 mt-1">
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-text-primary text-lg truncate">{org.name}</h3>
+                    <div className="flex items-center gap-3 mt-1 flex-wrap">
                       {isExpired ? (
                         <Badge variant="danger">Expirado</Badge>
                       ) : isExpiring ? (
@@ -157,66 +183,65 @@ export default function AdminOrganizations() {
                       </span>
                     </div>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Button
-                    size="sm"
-                    variant={isExpired ? 'primary' : 'secondary'}
-                    leftIcon={<RefreshCwIcon className="w-4 h-4" />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setRenewOrg(org.id);
-                    }}
-                  >
-                    Renovar
-                  </Button>
                   {isExpanded ? (
-                    <ChevronUpIcon className="w-5 h-5 text-text-muted" />
+                    <ChevronUpIcon className="w-5 h-5 text-text-muted flex-shrink-0 ml-auto" aria-hidden="true" />
                   ) : (
-                    <ChevronDownIcon className="w-5 h-5 text-text-muted" />
+                    <ChevronDownIcon className="w-5 h-5 text-text-muted flex-shrink-0 ml-auto" aria-hidden="true" />
                   )}
-                </div>
+                </button>
+
+                <Button
+                  size="sm"
+                  variant={isExpired ? 'primary' : 'secondary'}
+                  leftIcon={<RefreshCwIcon className="w-4 h-4" />}
+                  onClick={() => setRenewOrg(org.id)}
+                >
+                  Renovar
+                </Button>
               </div>
 
               {/* Expanded details */}
-              {isExpanded && (
-                <div className="border-t border-border bg-gray-50 p-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {isExpanded && (() => {
+                const currentPlanId = (org as any).planId || '';
+                const draftPlanId = planDrafts[org.id] ?? currentPlanId;
+                const planUnchanged = draftPlanId === currentPlanId;
+                return (
+                <div className="border-t border-border p-5">
+                  <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
                     {(org as any).owner && (
-                      <div className="bg-white rounded-lg p-4 border border-border">
-                        <div className="flex items-center gap-2 mb-1">
-                          <UsersIcon className="w-3.5 h-3.5 text-text-muted" />
-                          <p className="text-xs text-text-muted font-medium">Proprietário</p>
-                        </div>
-                        <p className="text-sm font-medium text-text-primary">{(org as any).owner.name}</p>
-                        <p className="text-xs text-text-muted">{(org as any).owner.email}</p>
+                      <div>
+                        <dt className="flex items-center gap-2 text-xs text-text-muted font-medium mb-1">
+                          <UsersIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                          Proprietário
+                        </dt>
+                        <dd className="text-sm font-medium text-text-primary">{(org as any).owner.name}</dd>
+                        <dd className="text-xs text-text-muted">{(org as any).owner.email}</dd>
                       </div>
                     )}
-                    <div className="bg-white rounded-lg p-4 border border-border">
-                      <div className="flex items-center gap-2 mb-1">
-                        <CalendarIcon className="w-3.5 h-3.5 text-text-muted" />
-                        <p className="text-xs text-text-muted font-medium">Plano expira em</p>
-                      </div>
-                      <p className={`text-sm font-bold ${isExpired ? 'text-danger' : isExpiring ? 'text-warning' : 'text-success'}`}>
+                    <div>
+                      <dt className="flex items-center gap-2 text-xs text-text-muted font-medium mb-1">
+                        <CalendarIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                        Plano expira em
+                      </dt>
+                      <dd className={`text-sm font-bold ${isExpired ? 'text-danger' : isExpiring ? 'text-warning' : 'text-success'}`}>
                         {formatDate(org.planExpiresAt)}
                         {!isExpired && ` (${days} dias)`}
-                      </p>
+                      </dd>
                     </div>
-                    <div className="bg-white rounded-lg p-4 border border-border">
-                      <div className="flex items-center gap-2 mb-1">
-                        <CalendarIcon className="w-3.5 h-3.5 text-text-muted" />
-                        <p className="text-xs text-text-muted font-medium">Criado em</p>
-                      </div>
-                      <p className="text-sm text-text-primary font-medium">
+                    <div>
+                      <dt className="flex items-center gap-2 text-xs text-text-muted font-medium mb-1">
+                        <CalendarIcon className="w-3.5 h-3.5" aria-hidden="true" />
+                        Criado em
+                      </dt>
+                      <dd className="text-sm text-text-primary font-medium">
                         {formatDate(org.createdAt)}
-                      </p>
+                      </dd>
                     </div>
-                  </div>
+                  </dl>
 
-                  <div className="mt-4 bg-white rounded-lg border border-border p-4">
+                  <div className="mt-5 pt-4 border-t border-border">
                     <p className="text-sm font-medium text-text-primary mb-2">Plano</p>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-end gap-3">
                       <div className="flex-1">
                         <Select
                           options={[
@@ -226,19 +251,27 @@ export default function AdminOrganizations() {
                               label: `${p.name} — ${p.priceCents === 0 ? 'Grátis' : formatCurrency(p.priceCents) + '/mês'}`,
                             })),
                           ]}
-                          value={(org as any).planId || ''}
-                          onChange={(e) => {
-                            if (e.target.value) {
-                              assignPlanMutation.mutate({ orgId: org.id, planId: e.target.value });
-                            }
-                          }}
+                          value={draftPlanId}
+                          onChange={(e) =>
+                            setPlanDrafts((prev) => ({ ...prev, [org.id]: e.target.value }))
+                          }
                         />
                       </div>
+                      <Button
+                        variant="secondary"
+                        disabled={planUnchanged || assignPlanMutation.isPending}
+                        onClick={() =>
+                          setPlanConfirm({ orgId: org.id, orgName: org.name, planId: draftPlanId })
+                        }
+                      >
+                        Aplicar
+                      </Button>
                     </div>
                   </div>
 
                 </div>
-              )}
+                );
+              })()}
             </Card>
           );
         })}
@@ -344,6 +377,22 @@ export default function AdminOrganizations() {
         title="Renovar Plano"
         message="Tem certeza que deseja renovar o plano deste estabelecimento por mais 30 dias?"
         confirmText="Renovar"
+      />
+
+      <ConfirmDialog
+        isOpen={!!planConfirm}
+        onClose={() => setPlanConfirm(null)}
+        onConfirm={() =>
+          planConfirm &&
+          assignPlanMutation.mutate({ orgId: planConfirm.orgId, planId: planConfirm.planId })
+        }
+        title="Alterar plano"
+        message={
+          planConfirm
+            ? `Tem certeza que deseja alterar o plano de "${planConfirm.orgName}"? A mudança entra em vigor imediatamente.`
+            : ''
+        }
+        confirmText="Aplicar"
       />
     </PageContainer>
   );

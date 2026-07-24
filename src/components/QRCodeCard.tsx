@@ -1,5 +1,6 @@
-import React, { Component } from 'react';
+import React, { useRef } from 'react';
 import { DownloadIcon } from 'lucide-react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { Button } from './Button';
 interface QRCodeCardProps {
   url: string;
@@ -13,29 +14,36 @@ export function QRCodeCard({
   showDownload = false,
   tableName
 }: QRCodeCardProps) {
-  // A simple placeholder for QR code since we can't easily generate real ones without an external library
-  // In a real app, we'd use qrcode.react here
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}`;
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Generate the QR locally (no third-party service) and download the canvas as a PNG.
   const handleDownload = () => {
-    // In a real app, this would fetch the image and trigger a download
-    window.open(qrCodeUrl, '_blank');
+    const canvas = containerRef.current?.querySelector('canvas');
+    if (!canvas) return;
+    const link = document.createElement('a');
+    link.download = `qrcode-${(tableName || 'mesa').replace(/\s+/g, '-').toLowerCase()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
   };
+
   return (
     <div className="flex flex-col items-center gap-4">
       <div
+        ref={containerRef}
         className="bg-white p-4 rounded-xl border border-border shadow-sm flex items-center justify-center"
         style={{
           width: size + 32,
           height: size + 32
         }}>
-        
-        <img
-          src={qrCodeUrl}
-          alt={`QR Code for ${tableName || 'table'}`}
-          width={size}
-          height={size}
+
+        <QRCodeCanvas
+          value={url}
+          size={size}
+          level="M"
+          marginSize={0}
+          title={`QR Code${tableName ? ` da ${tableName}` : ''}`}
           className="rounded-md" />
-        
+
       </div>
 
       {showDownload &&
@@ -43,7 +51,7 @@ export function QRCodeCard({
         variant="secondary"
         onClick={handleDownload}
         leftIcon={<DownloadIcon className="w-4 h-4" />}>
-        
+
           Baixar QR Code
         </Button>
       }

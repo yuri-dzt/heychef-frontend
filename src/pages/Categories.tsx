@@ -11,12 +11,13 @@ import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { Input } from '../components/Input';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ErrorState } from '../components/ErrorState';
 import type { Category } from '../types';
 
 export default function Categories() {
   const queryClient = useQueryClient();
 
-  const { data: categories = [], isLoading } = useQuery({
+  const { data: categories = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['categories'],
     queryFn: categoriesApi.list,
   });
@@ -44,6 +45,29 @@ export default function Categories() {
     },
     onError: (error: any) => {
       const msg = error?.response?.data?.message || 'Erro ao atualizar categoria';
+      toast.error(msg);
+    },
+  });
+
+  // Reorder issues both orderIndex swaps as one logical update (sequential to
+  // avoid a race) and surfaces a single success toast.
+  const reorderMutation = useMutation({
+    mutationFn: async ({
+      first,
+      second,
+    }: {
+      first: { id: string; orderIndex: number };
+      second: { id: string; orderIndex: number };
+    }) => {
+      await categoriesApi.update(first.id, { orderIndex: first.orderIndex });
+      await categoriesApi.update(second.id, { orderIndex: second.orderIndex });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      toast.success('Categoria atualizada');
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || 'Erro ao reordenar categorias';
       toast.error(msg);
     },
   });
@@ -101,16 +125,20 @@ export default function Categories() {
     if (index === 0) return;
     const cat = categories[index];
     const prev = categories[index - 1];
-    updateMutation.mutate({ id: cat.id, data: { orderIndex: prev.orderIndex } });
-    updateMutation.mutate({ id: prev.id, data: { orderIndex: cat.orderIndex } });
+    reorderMutation.mutate({
+      first: { id: cat.id, orderIndex: prev.orderIndex },
+      second: { id: prev.id, orderIndex: cat.orderIndex },
+    });
   };
 
   const moveDown = (index: number) => {
     if (index === categories.length - 1) return;
     const cat = categories[index];
     const next = categories[index + 1];
-    updateMutation.mutate({ id: cat.id, data: { orderIndex: next.orderIndex } });
-    updateMutation.mutate({ id: next.id, data: { orderIndex: cat.orderIndex } });
+    reorderMutation.mutate({
+      first: { id: cat.id, orderIndex: next.orderIndex },
+      second: { id: next.id, orderIndex: cat.orderIndex },
+    });
   };
 
   if (isLoading) {
@@ -138,6 +166,8 @@ export default function Categories() {
         } />
 
 
+      {isError ?
+      <ErrorState onRetry={refetch} /> :
       <Card noPadding>
         <div className="divide-y divide-border">
           {categories.map((category, index) =>
@@ -146,11 +176,12 @@ export default function Categories() {
             className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors group">
 
               <div className="flex items-center gap-4">
-                <div className="flex flex-col gap-1 text-gray-300">
+                <div className="flex flex-col text-gray-300">
                   <button
                   onClick={() => moveUp(index)}
                   disabled={index === 0}
-                  className="hover:text-primary disabled:opacity-30 disabled:hover:text-gray-300">
+                  aria-label="Mover para cima"
+                  className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center hover:text-primary disabled:opacity-30 disabled:hover:text-gray-300">
 
                     <svg
                     width="16"
@@ -160,7 +191,8 @@ export default function Categories() {
                     stroke="currentColor"
                     strokeWidth="2"
                     strokeLinecap="round"
-                    strokeLinejoin="round">
+                    strokeLinejoin="round"
+                    aria-hidden="true">
 
                       <path d="m18 15-6-6-6 6" />
                     </svg>
@@ -168,7 +200,8 @@ export default function Categories() {
                   <button
                   onClick={() => moveDown(index)}
                   disabled={index === categories.length - 1}
-                  className="hover:text-primary disabled:opacity-30 disabled:hover:text-gray-300">
+                  aria-label="Mover para baixo"
+                  className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center hover:text-primary disabled:opacity-30 disabled:hover:text-gray-300">
 
                     <svg
                     width="16"
@@ -178,7 +211,8 @@ export default function Categories() {
                     stroke="currentColor"
                     strokeWidth="2"
                     strokeLinecap="round"
-                    strokeLinejoin="round">
+                    strokeLinejoin="round"
+                    aria-hidden="true">
 
                       <path d="m6 9 6 6 6-6" />
                     </svg>
@@ -197,27 +231,29 @@ export default function Categories() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-2">
                 <button
                 onClick={() => toggleActive(category)}
-                className="text-sm font-medium text-text-secondary hover:text-primary px-3 py-1.5 rounded-md hover:bg-primary-light transition-colors">
+                className="text-sm font-medium text-text-secondary hover:text-primary px-3 py-1.5 min-h-[44px] rounded-md hover:bg-primary-light transition-colors">
 
                   {category.active ? 'Desativar' : 'Ativar'}
                 </button>
                 <button
                 onClick={() => handleOpenModal(category)}
-                className="p-2 text-text-secondary hover:text-primary hover:bg-primary-light rounded-md transition-colors">
+                aria-label="Editar categoria"
+                className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-text-secondary hover:text-primary hover:bg-primary-light rounded-md transition-colors">
 
-                  <Edit2Icon className="w-4 h-4" />
+                  <Edit2Icon className="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button
                 onClick={() => {
                   setCategoryToDelete(category.id);
                   setDeleteModalOpen(true);
                 }}
-                className="p-2 text-text-secondary hover:text-danger hover:bg-red-50 rounded-md transition-colors">
+                aria-label="Excluir categoria"
+                className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-text-secondary hover:text-danger hover:bg-red-50 rounded-md transition-colors">
 
-                  <Trash2Icon className="w-4 h-4" />
+                  <Trash2Icon className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -230,6 +266,7 @@ export default function Categories() {
           }
         </div>
       </Card>
+      }
 
       <Modal
         isOpen={isModalOpen}

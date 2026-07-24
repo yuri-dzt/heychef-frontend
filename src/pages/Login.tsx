@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { MailIcon, LockIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
@@ -53,6 +53,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               leftIcon={<MailIcon className="w-5 h-5" />}
+              autoComplete="email"
               autoFocus
               required />
 
@@ -64,17 +65,36 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               leftIcon={<LockIcon className="w-5 h-5" />}
+              autoComplete="current-password"
               required />
-            
+
 
             <Button
               type="submit"
               className="w-full"
               size="lg"
               isLoading={isLoading}>
-              
+
               Entrar no painel
             </Button>
+
+            <div className="flex flex-col items-center gap-2 pt-2 text-sm">
+              <a
+                href="mailto:suporte@heychef.com?subject=Recupera%C3%A7%C3%A3o%20de%20senha"
+                className="text-text-secondary hover:text-primary transition-colors">
+
+                Esqueci minha senha
+              </a>
+              <p className="text-text-secondary">
+                Não tem conta?{' '}
+                <Link
+                  to="/register"
+                  className="text-primary-strong hover:text-primary-hover font-medium">
+
+                  Criar conta
+                </Link>
+              </p>
+            </div>
           </form>
         </Card>
 

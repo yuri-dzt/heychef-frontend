@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -13,6 +13,7 @@ import { PageContainer } from '../components/PageContainer';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { StatusBadge } from '../components/StatusBadge';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { formatCurrency, formatDateTime, shortOrderId } from '../utils/format';
 import { ordersApi } from '../api/orders';
 import type { OrderStatus } from '../types';
@@ -22,8 +23,9 @@ export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
 
-  const { data: order, isLoading } = useQuery({
+  const { data: order, isLoading, isError } = useQuery({
     queryKey: ['orders', id],
     queryFn: () => ordersApi.getById(id!),
     enabled: !!id,
@@ -53,7 +55,7 @@ export default function OrderDetail() {
     },
   });
 
-  if (isLoading || !order) {
+  if (isLoading) {
     return (
       <PageContainer maxWidth="lg">
         <div className="flex items-center justify-center py-20">
@@ -62,15 +64,40 @@ export default function OrderDetail() {
       </PageContainer>
     );
   }
+
+  if (isError || !order) {
+    return (
+      <PageContainer maxWidth="lg">
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <h1 className="text-xl font-bold text-text-primary mb-2">
+            Pedido não encontrado
+          </h1>
+          <p className="text-sm text-text-secondary mb-6 max-w-sm">
+            Não foi possível carregar este pedido. Ele pode ter sido removido ou o
+            link está incorreto.
+          </p>
+          <Button
+            variant="secondary"
+            onClick={() => navigate('/orders')}
+            leftIcon={<ArrowLeftIcon className="w-4 h-4" />}
+          >
+            Voltar para pedidos
+          </Button>
+        </div>
+      </PageContainer>
+    );
+  }
+
   const currentStepIndex = STATUS_STEPS.indexOf(order.status);
   return (
     <PageContainer maxWidth="lg">
       <div className="mb-6 flex items-center gap-4">
         <button
           onClick={() => navigate('/orders')}
-          className="p-2 bg-white border border-border rounded-lg hover:bg-gray-50 transition-colors">
-          
-          <ArrowLeftIcon className="w-5 h-5 text-text-secondary" />
+          aria-label="Voltar para pedidos"
+          className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center bg-white border border-border rounded-lg hover:bg-gray-50 transition-colors">
+
+          <ArrowLeftIcon className="w-5 h-5 text-text-secondary" aria-hidden="true" />
         </button>
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">
@@ -84,8 +111,9 @@ export default function OrderDetail() {
         <div className="ml-auto flex gap-2">
           <Button
             variant="secondary"
+            onClick={() => window.print()}
             leftIcon={<PrinterIcon className="w-4 h-4" />}>
-            
+
             Imprimir
           </Button>
           {order.status !== 'DELIVERED' && order.status !== 'CANCELED' &&
@@ -234,7 +262,7 @@ export default function OrderDetail() {
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                <div className="p-2 bg-info/10 text-info rounded-lg">
                   <ClockIcon className="w-5 h-5" />
                 </div>
                 <div>
@@ -247,12 +275,12 @@ export default function OrderDetail() {
 
               {order.notes &&
               <div className="flex items-start gap-3">
-                  <div className="p-2 bg-yellow-50 text-yellow-600 rounded-lg">
+                  <div className="p-2 bg-warning/10 text-warning rounded-lg">
                     <FileTextIcon className="w-5 h-5" />
                   </div>
                   <div>
                     <p className="text-sm text-text-muted">Observações</p>
-                    <p className="text-sm text-text-primary mt-1 bg-yellow-50/50 p-2 rounded border border-yellow-100">
+                    <p className="text-sm text-text-primary mt-1 bg-warning/5 p-2 rounded border border-warning/20">
                       {order.notes}
                     </p>
                   </div>
@@ -271,7 +299,7 @@ export default function OrderDetail() {
               <Button
                 variant="danger"
                 className="w-full"
-                onClick={() => cancelMutation.mutate()}
+                onClick={() => setCancelModalOpen(true)}
                 isLoading={cancelMutation.isPending}>
                 Cancelar Pedido
               </Button>
@@ -279,6 +307,21 @@ export default function OrderDetail() {
           }
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onConfirm={() =>
+          cancelMutation.mutate(undefined, {
+            onSettled: () => setCancelModalOpen(false),
+          })
+        }
+        title="Cancelar pedido"
+        message="Tem certeza que deseja cancelar este pedido? Esta ação não pode ser desfeita."
+        confirmText="Sim, cancelar"
+        isDanger
+        isLoading={cancelMutation.isPending}
+      />
     </PageContainer>);
 
 }

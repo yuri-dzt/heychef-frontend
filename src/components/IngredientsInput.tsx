@@ -17,8 +17,8 @@ export function IngredientsInput({ value, onChange, label }: IngredientsInputPro
     setInput('');
   };
 
-  const removeIngredient = (index: number) => {
-    onChange(value.filter((_, i) => i !== index));
+  const removeIngredient = (ingredient: string) => {
+    onChange(value.filter((item) => item !== ingredient));
   };
 
   return (
@@ -30,18 +30,19 @@ export function IngredientsInput({ value, onChange, label }: IngredientsInputPro
       {/* Tags */}
       {value.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2">
-          {value.map((ingredient, index) => (
+          {value.map((ingredient) => (
             <span
-              key={index}
-              className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-light text-primary text-sm rounded-lg"
+              key={ingredient}
+              className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary-light text-primary-strong text-sm rounded-lg"
             >
               {ingredient}
               <button
                 type="button"
-                onClick={() => removeIngredient(index)}
-                className="hover:text-primary-hover"
+                onClick={() => removeIngredient(ingredient)}
+                aria-label={`Remover ${ingredient}`}
+                className="p-0.5 hover:text-primary-hover"
               >
-                <XIcon className="w-3.5 h-3.5" />
+                <XIcon className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             </span>
           ))}
@@ -61,15 +62,17 @@ export function IngredientsInput({ value, onChange, label }: IngredientsInputPro
             }
           }}
           placeholder="Ex: Pão brioche, Carne 180g..."
+          aria-label="Adicionar ingrediente"
           className="flex-1 rounded-lg border border-border p-2.5 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
         />
         <button
           type="button"
           onClick={addIngredient}
           disabled={!input.trim()}
-          className="px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          aria-label="Adicionar ingrediente"
+          className="px-3 min-h-[44px] min-w-[44px] flex items-center justify-center bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
-          <PlusIcon className="w-4 h-4" />
+          <PlusIcon className="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
       <p className="text-xs text-text-muted mt-1">Pressione Enter para adicionar</p>

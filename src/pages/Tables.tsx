@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   PlusIcon,
   QrCodeIcon,
@@ -17,12 +17,15 @@ import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { Input } from '../components/Input';
 import { QRCodeCard } from '../components/QRCodeCard';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ErrorState } from '../components/ErrorState';
+import { Skeleton } from '../components/Skeleton';
 import { tablesApi } from '../api/tables';
 import type { Table } from '../types';
 
 export default function Tables() {
   const queryClient = useQueryClient();
-  const { data: tables = [], isLoading } = useQuery({
+  const { data: tables = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['tables'],
     queryFn: tablesApi.list,
   });
@@ -79,6 +82,31 @@ export default function Tables() {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [tableName, setTableName] = useState('');
+  // Click-controlled row menu (one open at a time)
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  // Confirm dialogs
+  const [tableToDelete, setTableToDelete] = useState<Table | null>(null);
+  const [regenerateConfirmOpen, setRegenerateConfirmOpen] = useState(false);
+
+  // Close the row menu on outside click or Escape.
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [openMenuId]);
   const handleOpenModal = (table?: Table) => {
     if (table) {
       setSelectedTable(table);
@@ -127,44 +155,91 @@ export default function Tables() {
         } />
       
 
+      {isError ?
+      <ErrorState onRetry={refetch} /> :
+      isLoading ?
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+          {Array.from({ length: 8 }).map((_, i) =>
+        <Card key={i} className="flex flex-col items-center text-center">
+              <Skeleton width={80} height={20} className="self-start mb-4" />
+              <Skeleton width={96} height={96} className="mb-4" />
+              <Skeleton width={120} height={20} className="mb-4" />
+              <Skeleton height={32} />
+            </Card>
+        )}
+        </div> :
+      tables.length === 0 ?
+      <div className="text-center py-12 bg-white rounded-xl border border-border">
+          <QrCodeIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <h3 className="text-lg font-medium text-text-primary">
+            Nenhuma mesa cadastrada
+          </h3>
+          <p className="text-text-secondary mt-1">
+            Crie uma mesa para gerar seu QR Code do cardápio.
+          </p>
+        </div> :
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
         {tables.map((table) =>
         <Card
           key={table.id}
-          className="flex flex-col items-center text-center group"
+          className="flex flex-col items-center text-center"
           hoverable>
-          
+
             <div className="w-full flex justify-between items-start mb-4">
               <Badge variant={table.active ? 'success' : 'default'}>
                 {table.active ? 'Ativa' : 'Inativa'}
               </Badge>
 
-              <div className="relative">
-                <button className="text-text-muted hover:text-text-primary p-1">
-                  <MoreVerticalIcon className="w-4 h-4" />
+              <div className="relative" ref={openMenuId === table.id ? menuRef : undefined}>
+                <button
+                onClick={() => setOpenMenuId(openMenuId === table.id ? null : table.id)}
+                aria-label="Ações da mesa"
+                aria-haspopup="menu"
+                aria-expanded={openMenuId === table.id}
+                className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-text-muted hover:text-text-primary">
+                  <MoreVerticalIcon className="w-4 h-4" aria-hidden="true" />
                 </button>
-                {/* Simple dropdown simulation on hover for demo */}
-                <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-md shadow-lg border border-border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                {openMenuId === table.id &&
+                <div role="menu" className="absolute right-0 top-full mt-1 w-40 bg-white rounded-md shadow-lg border border-border z-10 py-1">
                   <button
-                  onClick={() => handleOpenModal(table)}
-                  className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-gray-50 flex items-center gap-2">
-                  
-                    <Edit2Icon className="w-3 h-3" /> Editar
+                  role="menuitem"
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    handleOpenModal(table);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-gray-50 flex items-center gap-2">
+
+                    <Edit2Icon className="w-3.5 h-3.5" aria-hidden="true" /> Editar
                   </button>
                   <button
-                  onClick={() => toggleActive(table.id)}
-                  className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-gray-50">
-                  
+                  role="menuitem"
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    toggleActive(table.id);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-text-primary hover:bg-gray-50">
+
                     {table.active ? 'Desativar' : 'Ativar'}
                   </button>
+                  <button
+                  role="menuitem"
+                  onClick={() => {
+                    setOpenMenuId(null);
+                    setTableToDelete(table);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-danger hover:bg-red-50 flex items-center gap-2">
+
+                    <Trash2Icon className="w-3.5 h-3.5" aria-hidden="true" /> Excluir mesa
+                  </button>
                 </div>
+                }
               </div>
             </div>
 
             <div
             className="w-24 h-24 bg-gray-50 rounded-xl border border-border flex items-center justify-center mb-4 cursor-pointer hover:border-primary transition-colors"
             onClick={() => openQRModal(table)}>
-            
+
               <QrCodeIcon className="w-10 h-10 text-text-muted" />
             </div>
 
@@ -178,7 +253,7 @@ export default function Tables() {
               size="sm"
               className="w-full text-xs"
               onClick={() => openQRModal(table)}>
-              
+
                 Ver QR
               </Button>
               <Button
@@ -186,13 +261,14 @@ export default function Tables() {
               size="sm"
               className="w-full text-xs bg-gray-50"
               onClick={() => copyLink(table.qrCodeToken)}>
-              
+
                 <LinkIcon className="w-3 h-3 mr-1" /> Link
               </Button>
             </div>
           </Card>
         )}
       </div>
+      }
 
       {/* Form Modal */}
       <Modal
@@ -258,7 +334,7 @@ export default function Tables() {
                 <Button
                 variant="ghost"
                 className="text-danger hover:bg-red-50 text-sm"
-                onClick={() => regenerateTokenMutation.mutate(selectedTable.id)}>
+                onClick={() => setRegenerateConfirmOpen(true)}>
 
                   Regerar Token (Invalida o QR atual)
                 </Button>
@@ -267,6 +343,37 @@ export default function Tables() {
           </div>
         }
       </Modal>
+
+      <ConfirmDialog
+        isOpen={tableToDelete !== null}
+        onClose={() => setTableToDelete(null)}
+        onConfirm={() => {
+          if (tableToDelete) {
+            deleteMutation.mutate(tableToDelete.id);
+            setTableToDelete(null);
+          }
+        }}
+        title="Excluir mesa"
+        message={`Tem certeza que deseja excluir a mesa "${tableToDelete?.name}"? Esta ação não pode ser desfeita e o QR Code associado deixará de funcionar.`}
+        confirmText="Excluir"
+        isDanger
+        isLoading={deleteMutation.isPending} />
+
+      <ConfirmDialog
+        isOpen={regenerateConfirmOpen}
+        onClose={() => setRegenerateConfirmOpen(false)}
+        onConfirm={() => {
+          if (selectedTable) {
+            regenerateTokenMutation.mutate(selectedTable.id);
+          }
+          setRegenerateConfirmOpen(false);
+        }}
+        title="Regerar Token"
+        message="Ao regerar o token, o QR Code atual deixará de funcionar imediatamente. Todos os QR Codes já impressos ou compartilhados precisarão ser substituídos. Deseja continuar?"
+        confirmText="Regerar Token"
+        isDanger
+        isLoading={regenerateTokenMutation.isPending} />
+
     </PageContainer>);
 
 }

@@ -7,6 +7,7 @@ import { Header } from '../components/Header';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
+import { ErrorState } from '../components/ErrorState';
 import { getRelativeTime } from '../utils/format';
 import { waiterCallsApi } from '../api/waiter-calls';
 
@@ -14,7 +15,7 @@ export default function WaiterCalls() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<'ALL' | 'OPEN' | 'RESOLVED'>('OPEN');
 
-  const { data: calls = [] } = useQuery({
+  const { data: calls = [], isError, refetch } = useQuery({
     queryKey: ['waiter-calls'],
     queryFn: () => waiterCallsApi.list(),
     refetchInterval: 10000,
@@ -44,31 +45,36 @@ export default function WaiterCalls() {
     if (a.status !== 'OPEN' && b.status === 'OPEN') return 1;
     return b.createdAt - a.createdAt;
   });
+  const openCount = calls.filter((c) => c.status === 'OPEN').length;
+  const resolvedCount = calls.filter((c) => c.status === 'RESOLVED').length;
+
   return (
     <PageContainer maxWidth="lg">
       <Header title="Chamados de Garçom" />
 
       <div className="inline-flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg">
         <button
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === 'OPEN' ? 'bg-white text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === 'OPEN' ? 'bg-white text-primary-strong shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
           onClick={() => setFilter('OPEN')}>
 
-          Abertos ({calls.filter((c) => c.status === 'OPEN').length})
+          Abertos ({openCount})
         </button>
         <button
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === 'RESOLVED' ? 'bg-white text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === 'RESOLVED' ? 'bg-white text-primary-strong shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
           onClick={() => setFilter('RESOLVED')}>
 
-          Resolvidos
+          Resolvidos ({resolvedCount})
         </button>
         <button
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === 'ALL' ? 'bg-white text-primary shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filter === 'ALL' ? 'bg-white text-primary-strong shadow-sm' : 'text-text-secondary hover:text-text-primary'}`}
           onClick={() => setFilter('ALL')}>
 
-          Todos
+          Todos ({calls.length})
         </button>
       </div>
 
+      {isError ?
+      <ErrorState onRetry={refetch} /> :
       <div className="space-y-4">
         {filteredCalls.map((call) =>
         <Card
@@ -125,6 +131,7 @@ export default function WaiterCalls() {
           </div>
         }
       </div>
+      }
     </PageContainer>);
 
 }

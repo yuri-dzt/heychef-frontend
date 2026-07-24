@@ -47,7 +47,7 @@ export function ConfirmDialog({
       
       <div className="flex items-start gap-4">
         <div
-          className={`p-2 rounded-full flex-shrink-0 ${isDanger ? 'bg-red-100 text-danger' : 'bg-yellow-100 text-warning'}`}>
+          className={`p-2 rounded-full flex-shrink-0 ${isDanger ? 'bg-danger/10 text-danger' : 'bg-warning/10 text-warning'}`}>
           
           <AlertTriangleIcon className="w-6 h-6" />
         </div>

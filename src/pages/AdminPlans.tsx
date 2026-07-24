@@ -20,6 +20,7 @@ import { Input } from '../components/Input';
 import { MoneyInput } from '../components/MoneyInput';
 import { Modal } from '../components/Modal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ErrorState } from '../components/ErrorState';
 import { plansApi, type Plan, type CreatePlanRequest } from '../api/plans';
 import { formatCurrency } from '../utils/format';
 
@@ -40,7 +41,7 @@ export default function AdminPlans() {
     maxOrdersPerDay: 100,
   });
 
-  const { data: plans = [], isLoading } = useQuery({
+  const { data: plans = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['plans'],
     queryFn: plansApi.list,
   });
@@ -133,12 +134,31 @@ export default function AdminPlans() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  if (isError) {
+    return (
+      <PageContainer>
+        <Header title="Planos" />
+        <ErrorState onRetry={() => refetch()} />
+      </PageContainer>
+    );
+  }
+
   if (isLoading) {
     return (
       <PageContainer>
         <Header title="Planos" />
-        <div className="flex items-center justify-center py-12">
-          <div className="text-text-muted">Carregando planos...</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <div className="h-6 w-32 bg-gray-200 rounded animate-pulse mb-4" />
+              <div className="h-9 w-24 bg-gray-200 rounded animate-pulse mb-5" />
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((j) => (
+                  <div key={j} className="h-4 w-full bg-gray-200 rounded animate-pulse" />
+                ))}
+              </div>
+            </Card>
+          ))}
         </div>
       </PageContainer>
     );
@@ -169,22 +189,24 @@ export default function AdminPlans() {
               <div className="flex gap-1">
                 <button
                   onClick={() => handleOpen(plan)}
-                  className="p-2 text-text-secondary hover:text-primary hover:bg-primary-light rounded-lg transition-colors"
+                  aria-label={`Editar plano ${plan.name}`}
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-text-secondary hover:text-primary hover:bg-primary-light rounded-lg transition-colors"
                 >
-                  <Edit2Icon className="w-4 h-4" />
+                  <Edit2Icon className="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button
                   onClick={() => setDeleteId(plan.id)}
-                  className="p-2 text-text-secondary hover:text-danger hover:bg-red-50 rounded-lg transition-colors"
+                  aria-label={`Excluir plano ${plan.name}`}
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-text-secondary hover:text-danger hover:bg-red-50 rounded-lg transition-colors"
                 >
-                  <Trash2Icon className="w-4 h-4" />
+                  <Trash2Icon className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
 
             {/* Price */}
             <div className="mb-5">
-              <span className="text-3xl font-bold text-primary">
+              <span className="text-3xl font-bold text-primary-strong">
                 {plan.priceCents === 0 ? 'Grátis' : formatCurrency(plan.priceCents)}
               </span>
               {plan.priceCents > 0 && <span className="text-text-muted text-sm">/mês</span>}

@@ -26,6 +26,7 @@ import { Select } from '../components/Select';
 import { MoneyInput } from '../components/MoneyInput';
 import { IngredientsInput } from '../components/IngredientsInput';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ErrorState } from '../components/ErrorState';
 import { formatCurrency } from '../utils/format';
 import type { Product, Category } from '../types';
 
@@ -33,12 +34,22 @@ export default function Products() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { data: products = [], isLoading: isLoadingProducts } = useQuery({
+  const {
+    data: products = [],
+    isLoading: isLoadingProducts,
+    isError: isErrorProducts,
+    refetch: refetchProducts,
+  } = useQuery({
     queryKey: ['products'],
     queryFn: () => productsApi.list(),
   });
 
-  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
+  const {
+    data: categories = [],
+    isLoading: isLoadingCategories,
+    isError: isErrorCategories,
+    refetch: refetchCategories,
+  } = useQuery({
     queryKey: ['categories'],
     queryFn: categoriesApi.list,
   });
@@ -238,6 +249,7 @@ export default function Products() {
   });
 
   const isLoading = isLoadingProducts || isLoadingCategories;
+  const isError = isErrorProducts || isErrorCategories;
 
   if (isLoading) {
     return (
@@ -246,6 +258,20 @@ export default function Products() {
         <div className="flex items-center justify-center py-12">
           <div className="text-text-muted">Carregando produtos...</div>
         </div>
+      </PageContainer>
+    );
+  }
+
+  if (isError) {
+    return (
+      <PageContainer>
+        <Header title="Produtos" />
+        <ErrorState
+          onRetry={() => {
+            refetchProducts();
+            refetchCategories();
+          }}
+        />
       </PageContainer>
     );
   }
@@ -316,29 +342,28 @@ export default function Products() {
                 <ImageIcon className="w-12 h-12 text-gray-300" />
                 }
                 {!product.active &&
-                <div className="absolute inset-0 bg-white/60 backdrop-blur-[1px] flex items-center justify-center">
+                <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
                     <Badge variant="default" className="text-sm px-3 py-1">
                       Inativo
                     </Badge>
                   </div>
                 }
 
-                {/* Hover Dim Overlay */}
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none" />
-
-                {/* Quick Actions Overlay */}
-                <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Quick Actions — always visible so they are reachable on touch */}
+                <div className="absolute top-2 right-2 flex gap-2">
                   <button
                     onClick={() => handleOpenProductModal(product)}
-                    className="p-2 bg-white rounded-full shadow-sm text-text-secondary hover:text-primary transition-colors">
+                    aria-label="Editar produto"
+                    className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center bg-white rounded-full shadow-sm text-text-secondary hover:text-primary transition-colors">
 
-                    <Edit2Icon className="w-4 h-4" />
+                    <Edit2Icon className="w-4 h-4" aria-hidden="true" />
                   </button>
                   <button
                     onClick={() => handleDeleteProduct(product.id)}
-                    className="p-2 bg-white rounded-full shadow-sm text-text-secondary hover:text-danger transition-colors">
+                    aria-label="Excluir produto"
+                    className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center bg-white rounded-full shadow-sm text-text-secondary hover:text-danger transition-colors">
 
-                    <Trash2Icon className="w-4 h-4" />
+                    <Trash2Icon className="w-4 h-4" aria-hidden="true" />
                   </button>
                 </div>
               </div>
@@ -348,7 +373,7 @@ export default function Products() {
                   <h3 className="font-bold text-lg text-text-primary line-clamp-1">
                     {product.name}
                   </h3>
-                  <span className="font-bold text-primary whitespace-nowrap ml-2">
+                  <span className="font-bold text-primary-strong whitespace-nowrap ml-2">
                     {formatCurrency(product.priceCents)}
                   </span>
                 </div>
@@ -367,7 +392,7 @@ export default function Products() {
                       setSelectedProductForAddon(product);
                       setIsAddonModalOpen(true);
                     }}
-                    className="text-sm font-medium text-primary hover:text-primary-hover">
+                    className="text-sm font-medium text-primary-strong hover:text-primary-hover">
 
                     {product.addonGroups?.length ?
                     `${product.addonGroups.length} grupos de adicionais` :
@@ -457,10 +482,11 @@ export default function Products() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1.5">
+            <label htmlFor="product-description" className="block text-sm font-medium text-text-primary mb-1.5">
               Descrição
             </label>
             <textarea
+              id="product-description"
               className="w-full rounded-lg border border-border p-3 text-sm focus:border-primary focus:ring-1 focus:ring-primary outline-none"
               rows={3}
               value={formData.description}
@@ -525,7 +551,7 @@ export default function Products() {
                 setIsAddonModalOpen(false);
                 navigate('/menu/addons');
               }}
-              className="flex items-center gap-1.5 text-sm font-medium text-primary hover:text-primary-hover"
+              className="flex items-center gap-1.5 text-sm font-medium text-primary-strong hover:text-primary-hover"
             >
               <ExternalLinkIcon className="w-4 h-4" />
               Gerenciar Adicionais
@@ -542,7 +568,7 @@ export default function Products() {
                   setIsAddonModalOpen(false);
                   navigate('/menu/addons');
                 }}
-                className="text-sm font-medium text-primary hover:text-primary-hover mt-2 inline-block"
+                className="text-sm font-medium text-primary-strong hover:text-primary-hover mt-2 inline-block"
               >
                 Criar grupos de adicionais
               </button>
@@ -567,11 +593,11 @@ export default function Products() {
                       Mínimo: {group.minSelect} | Máximo: {group.maxSelect}
                     </p>
                     {group.items && group.items.length > 0 && (
-                      <div className="mt-2 bg-white rounded-lg border border-border divide-y divide-border">
+                      <div className="mt-2 border-t border-border divide-y divide-border">
                         {group.items.map((item) => (
                           <div
                             key={item.id}
-                            className="p-2.5 flex justify-between items-center text-sm"
+                            className="py-2.5 flex justify-between items-center text-sm"
                           >
                             <span className="text-text-secondary">{item.name}</span>
                             <span className="font-medium text-text-secondary">

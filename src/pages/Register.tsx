@@ -73,6 +73,7 @@ export default function Register() {
               value={formData.name}
               onChange={handleChange}
               leftIcon={<UserIcon className="w-5 h-5" />}
+              autoComplete="name"
               required />
             
 
@@ -84,6 +85,7 @@ export default function Register() {
               value={formData.email}
               onChange={handleChange}
               leftIcon={<MailIcon className="w-5 h-5" />}
+              autoComplete="email"
               required />
             
 
@@ -95,6 +97,7 @@ export default function Register() {
               value={formData.password}
               onChange={handleChange}
               leftIcon={<LockIcon className="w-5 h-5" />}
+              autoComplete="new-password"
               required
               minLength={8} />
             
@@ -111,8 +114,14 @@ export default function Register() {
             </div>
 
             <p className="text-xs text-text-muted text-center mt-4">
-              Ao se registrar, você concorda com nossos Termos de Serviço e
-              Política de Privacidade.
+              Ao se registrar, você concorda com nossos{' '}
+              <Link to="/termos" className="text-primary-strong hover:text-primary-hover font-medium">
+                Termos de Serviço
+              </Link>{' '}
+              e{' '}
+              <Link to="/privacidade" className="text-primary-strong hover:text-primary-hover font-medium">
+                Política de Privacidade
+              </Link>.
             </p>
           </form>
         </Card>
@@ -121,7 +130,7 @@ export default function Register() {
           Já tem uma conta?{' '}
           <Link
             to="/login"
-            className="text-primary hover:text-primary-hover font-medium">
+            className="text-primary-strong hover:text-primary-hover font-medium">
             
             Fazer login
           </Link>

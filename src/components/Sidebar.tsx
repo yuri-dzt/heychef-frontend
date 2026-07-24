@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { organizationsApi } from '../api/organizations';
@@ -20,6 +20,8 @@ import {
   HomeIcon,
   FileTextIcon,
   MonitorSmartphoneIcon,
+  MoreHorizontalIcon,
+  XIcon,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -73,23 +75,59 @@ export function Sidebar() {
     return permissions[page]?.includes('READ');
   };
 
-  // Mobile nav items — filtered by permissions
-  const mobileItems = [
-    canAccess('orders') && { to: '/orders', icon: <ClipboardListIcon className="w-5 h-5" />, label: 'Pedidos' },
-    canAccess('menu') && { to: '/menu/categories', icon: <MenuIcon className="w-5 h-5" />, label: 'Cardápio' },
-    canAccess('tables') && { to: '/tables', icon: <LayoutGridIcon className="w-5 h-5" />, label: 'Mesas' },
-    canAccess('orders') && { to: '/waiter-calls', icon: <BellIcon className="w-5 h-5" />, label: 'Chamados' },
-  ].filter(Boolean) as { to: string; icon: React.ReactNode; label: string }[];
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  // Close the mobile "Mais" drawer on Escape.
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMoreOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [moreOpen]);
+
+  type MobileItem = { to: string; icon: React.ReactNode; label: string };
+
+  // Full role-aware mobile destination list (drives the bottom bar + "Mais" drawer).
+  const allMobileItems: MobileItem[] = (
+    isAdmin
+      ? [
+          { to: '/', icon: <HomeIcon className="w-5 h-5" />, label: 'Início' },
+          { to: '/admin/organizations', icon: <BuildingIcon className="w-5 h-5" />, label: 'Estabelecimentos' },
+          { to: '/admin/plans', icon: <CrownIcon className="w-5 h-5" />, label: 'Planos' },
+          { to: '/settings', icon: <SettingsIcon className="w-5 h-5" />, label: 'Configurações' },
+          { to: '/sessions', icon: <MonitorSmartphoneIcon className="w-5 h-5" />, label: 'Dispositivos' },
+        ]
+      : ([
+          { to: '/', icon: <HomeIcon className="w-5 h-5" />, label: 'Início' },
+          canAccess('orders') && { to: '/orders', icon: <ClipboardListIcon className="w-5 h-5" />, label: 'Pedidos' },
+          canAccess('menu') && { to: '/menu/categories', icon: <MenuIcon className="w-5 h-5" />, label: 'Cardápio' },
+          canAccess('tables') && { to: '/tables', icon: <LayoutGridIcon className="w-5 h-5" />, label: 'Mesas' },
+          canAccess('orders') && { to: '/waiter-calls', icon: <BellIcon className="w-5 h-5" />, label: 'Chamados' },
+          (isOrgAdmin || canAccess('users')) && { to: '/users', icon: <UsersIcon className="w-5 h-5" />, label: 'Usuários' },
+          (isOrgAdmin || canAccess('reports')) && { to: '/reports', icon: <BarChart3Icon className="w-5 h-5" />, label: 'Relatórios' },
+          isOrgAdmin && { to: '/audit', icon: <FileTextIcon className="w-5 h-5" />, label: 'Atividades' },
+          { to: '/settings', icon: <SettingsIcon className="w-5 h-5" />, label: 'Configurações' },
+          { to: '/sessions', icon: <MonitorSmartphoneIcon className="w-5 h-5" />, label: 'Dispositivos' },
+        ].filter(Boolean) as MobileItem[])
+  );
+
+  // Up to 4 primary destinations in the bottom bar; the rest live in the "Mais" drawer.
+  const primaryMobileItems = allMobileItems.slice(0, 4);
+  const hasMore = allMobileItems.length > 4;
 
   return (
     <>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-sidebar text-white h-screen sticky top-0 border-r border-gray-800">
-        <div
-          className="p-6 flex items-center gap-3 cursor-pointer"
+        <button
+          type="button"
+          className="p-6 flex items-center gap-3 text-left w-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
           onClick={() => navigate('/')}
+          aria-label="Ir para o início"
         >
-          <img src="/logo.svg" alt="HeyChef" className="w-10 h-10" />
+          <img src="/logo.svg" alt="" className="w-10 h-10" />
           <div>
             <span className="text-xl font-bold tracking-tight">
               {myOrg?.name || 'HeyChef'}
@@ -98,7 +136,7 @@ export function Sidebar() {
               <p className="text-xs text-gray-400 truncate">{(myOrg as any).planName || 'Sem plano'}</p>
             )}
           </div>
-        </div>
+        </button>
 
         <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
           {/* Plan expired banner — only for restaurant users */}
@@ -195,14 +233,15 @@ export function Sidebar() {
       />
 
       {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border z-50 pb-safe">
+      <nav aria-label="Navegação principal" className="md:hidden fixed bottom-0 left-0 right-0 bg-surface border-t border-border z-50 pb-safe">
         <div className="flex items-center justify-around p-2">
-          {mobileItems.map((item) => (
+          {primaryMobileItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
+              end={item.to === '/'}
               className={({ isActive }) =>
-                `flex flex-col items-center p-2 rounded-lg min-w-[64px] ${
+                `flex flex-col items-center justify-center min-h-[48px] px-2 py-1 rounded-lg min-w-[60px] ${
                   isActive ? 'text-primary' : 'text-text-muted hover:text-text-primary'
                 }`
               }
@@ -211,8 +250,80 @@ export function Sidebar() {
               <span className="text-[10px] mt-1 font-medium">{item.label}</span>
             </NavLink>
           ))}
+          {hasMore && (
+            <button
+              type="button"
+              onClick={() => setMoreOpen(true)}
+              aria-label="Mais opções"
+              aria-haspopup="dialog"
+              className="flex flex-col items-center justify-center min-h-[48px] px-2 py-1 rounded-lg min-w-[60px] text-text-muted hover:text-text-primary"
+            >
+              <MoreHorizontalIcon className="w-5 h-5" />
+              <span className="text-[10px] mt-1 font-medium">Mais</span>
+            </button>
+          )}
         </div>
       </nav>
+
+      {/* Mobile "Mais" drawer — full navigation for the current role */}
+      {moreOpen && (
+        <div className="md:hidden fixed inset-0 z-[60]">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setMoreOpen(false)}
+            aria-hidden="true"
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu de navegação"
+            className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl p-4 pb-safe max-h-[80vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-text-primary">Menu</h2>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(false)}
+                aria-label="Fechar menu"
+                className="p-2 -m-2 text-text-muted hover:text-text-primary rounded-full"
+              >
+                <XIcon className="w-5 h-5" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {allMobileItems.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.to === '/'}
+                  onClick={() => setMoreOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 min-h-[52px] px-4 rounded-xl border transition-colors ${
+                      isActive
+                        ? 'border-primary bg-primary-light text-primary-strong font-medium'
+                        : 'border-border text-text-primary hover:bg-gray-50'
+                    }`
+                  }
+                >
+                  {item.icon}
+                  <span className="text-sm">{item.label}</span>
+                </NavLink>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setMoreOpen(false);
+                setShowLogoutConfirm(true);
+              }}
+              className="flex items-center gap-3 w-full min-h-[52px] px-4 mt-3 rounded-xl border border-border text-danger hover:bg-red-50 transition-colors"
+            >
+              <LogOutIcon className="w-5 h-5" />
+              <span className="text-sm font-medium">Sair</span>
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -232,7 +343,7 @@ function CardapioSubmenu({
         onClick={() => setMenuOpen(!menuOpen)}
         className={`flex items-center justify-between w-full px-4 py-3 rounded-lg transition-colors duration-200 ${
           location.pathname.startsWith('/menu')
-            ? 'bg-primary/20 text-white font-medium'
+            ? 'bg-gray-800 text-white font-medium'
             : 'text-gray-300 hover:bg-gray-800 hover:text-white'
         }`}
       >

@@ -15,6 +15,8 @@ import { PageContainer } from '../components/PageContainer';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { Badge } from '../components/Badge';
+import { StatusBadge } from '../components/StatusBadge';
+import { ErrorState } from '../components/ErrorState';
 import { useAuth } from '../contexts/AuthContext';
 import { organizationsApi } from '../api/organizations';
 import { plansApi, type Plan } from '../api/plans';
@@ -39,15 +41,37 @@ function daysUntil(ts: number): number {
 // ─── SUPER ADMIN DASHBOARD ──────────────────────────────
 
 function SuperAdminDashboard() {
-  const { data: organizations = [] } = useQuery({
+  const {
+    data: organizations = [],
+    isError: isOrgsError,
+    refetch: refetchOrgs,
+  } = useQuery({
     queryKey: ['organizations'],
     queryFn: organizationsApi.list,
   });
 
-  const { data: plans = [] } = useQuery({
+  const {
+    data: plans = [],
+    isError: isPlansError,
+    refetch: refetchPlans,
+  } = useQuery({
     queryKey: ['plans'],
     queryFn: plansApi.list,
   });
+
+  if (isOrgsError || isPlansError) {
+    return (
+      <PageContainer>
+        <Header title="Painel da Plataforma" />
+        <ErrorState
+          onRetry={() => {
+            refetchOrgs();
+            refetchPlans();
+          }}
+        />
+      </PageContainer>
+    );
+  }
 
   const expiredOrgs = organizations.filter((o) => daysUntil(o.planExpiresAt) <= 0);
   const expiringOrgs = organizations.filter((o) => {
@@ -73,7 +97,7 @@ function SuperAdminDashboard() {
         </Card>
 
         <Card className="flex items-center p-5">
-          <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600 mr-4">
+          <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center text-success mr-4">
             <CrownIcon className="w-6 h-6" />
           </div>
           <div>
@@ -83,7 +107,7 @@ function SuperAdminDashboard() {
         </Card>
 
         <Card className="flex items-center p-5">
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${expiredOrgs.length > 0 ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${expiredOrgs.length > 0 ? 'bg-danger/10 text-danger' : 'bg-info/10 text-info'}`}>
             <AlertTriangleIcon className="w-6 h-6" />
           </div>
           <div>
@@ -203,20 +227,47 @@ function OrganizationDashboard() {
     }
   }, [user, navigate]);
 
-  const { data: orders = [] } = useQuery({
+  const {
+    data: orders = [],
+    isError: isOrdersError,
+    refetch: refetchOrders,
+  } = useQuery({
     queryKey: ['orders'],
     queryFn: () => ordersApi.list(),
   });
 
-  const { data: tables = [] } = useQuery({
+  const {
+    data: tables = [],
+    isError: isTablesError,
+    refetch: refetchTables,
+  } = useQuery({
     queryKey: ['tables'],
     queryFn: tablesApi.list,
   });
 
-  const { data: calls = [] } = useQuery({
+  const {
+    data: calls = [],
+    isError: isCallsError,
+    refetch: refetchCalls,
+  } = useQuery({
     queryKey: ['waiter-calls'],
     queryFn: () => waiterCallsApi.list(),
   });
+
+  if (isOrdersError || isTablesError || isCallsError) {
+    return (
+      <PageContainer>
+        <Header title="Dashboard" />
+        <ErrorState
+          onRetry={() => {
+            refetchOrders();
+            refetchTables();
+            refetchCalls();
+          }}
+        />
+      </PageContainer>
+    );
+  }
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -242,7 +293,7 @@ function OrganizationDashboard() {
         </Card>
 
         <Card className="flex items-center p-5">
-          <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600 mr-4">
+          <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center text-success mr-4">
             <DollarSignIcon className="w-6 h-6" />
           </div>
           <div>
@@ -252,7 +303,7 @@ function OrganizationDashboard() {
         </Card>
 
         <Card className="flex items-center p-5">
-          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mr-4">
+          <div className="w-12 h-12 rounded-full bg-info/10 flex items-center justify-center text-info mr-4">
             <LayoutGridIcon className="w-6 h-6" />
           </div>
           <div>
@@ -262,7 +313,7 @@ function OrganizationDashboard() {
         </Card>
 
         <Card className="flex items-center p-5">
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${openCalls > 0 ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-400'}`}>
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${openCalls > 0 ? 'bg-warning/10 text-warning' : 'bg-gray-100 text-gray-400'}`}>
             <BellIcon className="w-6 h-6" />
           </div>
           <div>
@@ -304,17 +355,7 @@ function OrganizationDashboard() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-medium text-text-primary">{formatCurrency(order.totalCents)}</span>
-                  <Badge variant={
-                    order.status === 'RECEIVED' ? 'info' :
-                    order.status === 'PREPARING' ? 'warning' :
-                    order.status === 'READY' ? 'primary' :
-                    order.status === 'DELIVERED' ? 'success' : 'default'
-                  }>
-                    {order.status === 'RECEIVED' ? 'Recebido' :
-                     order.status === 'PREPARING' ? 'Preparando' :
-                     order.status === 'READY' ? 'Pronto' :
-                     order.status === 'DELIVERED' ? 'Entregue' : order.status}
-                  </Badge>
+                  <StatusBadge status={order.status} />
                 </div>
               </Link>
             ))}

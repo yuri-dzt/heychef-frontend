@@ -14,6 +14,7 @@ import { Badge } from '../components/Badge';
 import { Button } from '../components/Button';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { getRelativeTime } from '../utils/format';
 import { sessionsApi } from '../api/sessions';
 import type { Session } from '../api/sessions';
@@ -30,7 +31,7 @@ export default function Sessions() {
   const [revokeId, setRevokeId] = useState<string | null>(null);
   const [showRevokeAll, setShowRevokeAll] = useState(false);
 
-  const { data: sessions = [], isLoading } = useQuery({
+  const { data: sessions = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['sessions'],
     queryFn: sessionsApi.list,
   });
@@ -95,6 +96,8 @@ export default function Sessions() {
         <div className="flex items-center justify-center min-h-[30vh]">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
+      ) : isError ? (
+        <ErrorState onRetry={refetch} />
       ) : sessions.length === 0 ? (
         <EmptyState
           icon={<MonitorIcon className="w-8 h-8" />}

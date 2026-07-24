@@ -60,23 +60,23 @@ export default function AdminSetup() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-950 py-12">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background py-12">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 mb-4 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center">
-            <ShieldAlertIcon className="w-8 h-8 text-red-400" />
+          <div className="w-16 h-16 mb-4 rounded-2xl bg-danger/10 border border-danger/30 flex items-center justify-center">
+            <ShieldAlertIcon className="w-8 h-8 text-danger" aria-hidden="true" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">
+          <h1 className="text-3xl font-bold text-text-primary tracking-tight">
             Configuração Inicial
           </h1>
-          <p className="text-gray-400 mt-2 text-center">
+          <p className="text-text-secondary mt-2 text-center">
             Criação do primeiro administrador da plataforma
           </p>
         </div>
 
-        <Card className="shadow-2xl shadow-black/40 border border-gray-800 bg-gray-900">
-          <div className="mb-5 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-            <p className="text-xs text-red-300">
+        <Card className="shadow-xl shadow-black/5 border border-border bg-surface">
+          <div className="mb-5 p-3 rounded-lg bg-danger/10 border border-danger/30">
+            <p className="text-xs text-danger">
               Esta página só deve ser utilizada uma única vez, na configuração inicial
               da plataforma. Após criar o primeiro administrador, desative este endpoint.
             </p>
@@ -108,12 +108,13 @@ export default function AdminSetup() {
               label="Senha"
               name="password"
               type="password"
-              placeholder="Mínimo 4 caracteres"
+              placeholder="Mínimo 8 caracteres"
               value={formData.password}
               onChange={handleChange}
               leftIcon={<LockIcon className="w-5 h-5" />}
+              autoComplete="new-password"
               required
-              minLength={4}
+              minLength={8}
             />
 
             <Input
@@ -141,7 +142,7 @@ export default function AdminSetup() {
           </form>
         </Card>
 
-        <p className="text-center mt-8 text-gray-500 text-xs">
+        <p className="text-center mt-8 text-text-muted text-xs">
           Acesso restrito. Registre-se apenas se você tiver a chave secreta da plataforma.
         </p>
       </div>

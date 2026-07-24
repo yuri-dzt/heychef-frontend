@@ -13,12 +13,13 @@ import { Modal } from '../components/Modal';
 import { Input } from '../components/Input';
 import { MoneyInput } from '../components/MoneyInput';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ErrorState } from '../components/ErrorState';
 import { formatCurrency } from '../utils/format';
 
 export default function Addons() {
   const queryClient = useQueryClient();
 
-  const { data: groups = [], isLoading } = useQuery({
+  const { data: groups = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['addon-groups'],
     queryFn: addonGroupsGlobalApi.list,
   });
@@ -122,20 +123,27 @@ export default function Addons() {
       toast.error('Preencha o nome do grupo');
       return;
     }
+    // Clamp to valid ranges and ensure min <= max so the group is selectable.
+    const minSelect = Math.max(0, Math.floor(groupFormData.minSelect || 0));
+    const maxSelect = Math.max(1, Math.floor(groupFormData.maxSelect || 0));
+    if (minSelect > maxSelect) {
+      toast.error('O mínimo de seleções não pode ser maior que o máximo');
+      return;
+    }
     if (editingGroup) {
       updateGroupMutation.mutate({
         id: editingGroup.id,
         data: {
           name: groupFormData.name,
-          minSelect: groupFormData.minSelect,
-          maxSelect: groupFormData.maxSelect,
+          minSelect,
+          maxSelect,
         },
       });
     } else {
       createGroupMutation.mutate({
         name: groupFormData.name,
-        minSelect: groupFormData.minSelect,
-        maxSelect: groupFormData.maxSelect,
+        minSelect,
+        maxSelect,
       });
     }
   };
@@ -165,6 +173,8 @@ export default function Addons() {
         }
       />
 
+      {isError ?
+      <ErrorState onRetry={refetch} /> :
       <div className="space-y-6">
         {groups.map((group) => (
           <Card key={group.id} className="p-5">
@@ -187,46 +197,49 @@ export default function Addons() {
               <div className="flex gap-2">
                 <button
                   onClick={() => handleOpenGroupModal(group)}
-                  className="p-2 text-text-secondary hover:text-primary hover:bg-primary-light rounded-md transition-colors"
+                  aria-label="Editar grupo"
+                  className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-text-secondary hover:text-primary hover:bg-primary-light rounded-md transition-colors"
                 >
-                  <Edit2Icon className="w-4 h-4" />
+                  <Edit2Icon className="w-4 h-4" aria-hidden="true" />
                 </button>
                 <button
                   onClick={() => {
                     setGroupToDelete(group.id);
                     setDeleteGroupModalOpen(true);
                   }}
-                  className="p-2 text-text-secondary hover:text-danger hover:bg-red-50 rounded-md transition-colors"
+                  aria-label="Excluir grupo"
+                  className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-text-secondary hover:text-danger hover:bg-red-50 rounded-md transition-colors"
                 >
-                  <Trash2Icon className="w-4 h-4" />
+                  <Trash2Icon className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
 
-            <div className="bg-gray-50 rounded-lg border border-border divide-y divide-border">
+            <div className="border-t border-border divide-y divide-border">
               {group.items?.map((item) => (
                 <div
                   key={item.id}
-                  className="p-3 flex justify-between items-center text-sm"
+                  className="py-3 flex justify-between items-center text-sm"
                 >
                   <span>{item.name}</span>
                   <div className="flex items-center gap-3">
                     <span className="font-medium">{formatCurrency(item.priceCents)}</span>
                     <button
-                      className="text-text-secondary hover:text-danger"
+                      aria-label="Excluir item"
+                      className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-text-secondary hover:text-danger"
                       onClick={() => {
                         setItemToDelete(item.id);
                         setDeleteItemModalOpen(true);
                       }}
                     >
-                      <Trash2Icon className="w-3.5 h-3.5" />
+                      <Trash2Icon className="w-3.5 h-3.5" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
               ))}
 
               {addingItemToGroupId === group.id ? (
-                <div className="p-3 space-y-2">
+                <div className="py-3 space-y-2">
                   <Input
                     label="Nome do item"
                     value={newItemData.name}
@@ -257,7 +270,7 @@ export default function Addons() {
                   </div>
                 </div>
               ) : (
-                <div className="p-2 bg-gray-50 text-center">
+                <div className="py-2 text-center">
                   <button
                     className="text-xs font-medium text-primary hover:text-primary-hover"
                     onClick={() => {
@@ -284,6 +297,7 @@ export default function Addons() {
           </div>
         )}
       </div>
+      }
 
       {/* Group Form Modal */}
       <Modal

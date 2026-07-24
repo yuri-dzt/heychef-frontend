@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useId } from 'react';
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
@@ -6,13 +6,16 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   rightIcon?: React.ReactNode;
 }
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, leftIcon, rightIcon, className = '', required, ...props }, ref) => {
+  ({ label, error, leftIcon, rightIcon, className = '', required, id, ...props }, ref) => {
+    const generatedId = useId();
+    const inputId = id || generatedId;
+    const errorId = `${inputId}-error`;
     return (
       <div className="w-full">
         {label &&
-        <label className="block text-sm font-medium text-text-primary mb-1.5">
+        <label htmlFor={inputId} className="block text-sm font-medium text-text-primary mb-1.5">
             {label}
-            {required && <span className="text-danger ml-0.5">*</span>}
+            {required && <span className="text-danger ml-0.5" aria-hidden="true">*</span>}
           </label>
         }
         <div className="relative">
@@ -23,7 +26,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           }
           <input
             ref={ref}
+            id={inputId}
             required={required}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? errorId : undefined}
             className={`
               block w-full rounded-lg border bg-white px-3 py-2 text-text-primary
               placeholder-text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary
@@ -34,14 +40,14 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               ${className}
             `}
             {...props} />
-          
+
           {rightIcon &&
           <div className="absolute inset-y-0 right-0 pr-3 flex items-center text-text-muted">
               {rightIcon}
             </div>
           }
         </div>
-        {error && <p className="mt-1.5 text-sm text-danger">{error}</p>}
+        {error && <p id={errorId} role="alert" className="mt-1.5 text-sm text-danger">{error}</p>}
       </div>);
 
   }

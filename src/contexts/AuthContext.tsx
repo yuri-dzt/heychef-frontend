@@ -22,6 +22,7 @@ interface AuthContextType {
   isAdmin: boolean;
   login: (data: LoginData) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -75,6 +76,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('heychef_refresh_token', response.refreshToken);
   }, []);
 
+  // Re-fetch the current user from the server (e.g. after finishing onboarding).
+  const refreshUser = useCallback(async () => {
+    if (!token) return;
+    const userType = localStorage.getItem('heychef_user_type');
+    try {
+      if (userType === 'admin') {
+        const admin = await adminAuthApi.getMe();
+        const next: User = { id: admin.id, name: admin.name, email: admin.email, type: 'admin' };
+        setUser(next);
+        localStorage.setItem('heychef_user', JSON.stringify(next));
+      } else {
+        const currentUser = await authApi.getMe();
+        const next: User = { ...currentUser, type: 'user' };
+        setUser(next);
+        localStorage.setItem('heychef_user', JSON.stringify(next));
+      }
+    } catch {
+      // Keep the current user on a transient failure.
+    }
+  }, [token]);
+
   // Restore session on mount
   useEffect(() => {
     const initAuth = async () => {
@@ -122,6 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAdmin: user?.type === 'admin',
         login,
         logout,
+        refreshUser,
       }}
     >
       {children}
