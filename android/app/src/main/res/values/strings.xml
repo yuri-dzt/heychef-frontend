@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HeyChef</string>
+    <string name="title_activity_main">HeyChef</string>
+    <string name="package_name">com.heychef.app</string>
+    <string name="custom_url_scheme">com.heychef.app</string>
+</resources>

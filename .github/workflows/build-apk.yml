@@ -1,0 +1,66 @@
+name: Build Android APK
+
+# Dispare manualmente em: GitHub → aba Actions → "Build Android APK" → Run workflow.
+# O APK sai como "artifact" no final da execução, pronto pra baixar e instalar.
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: 'Endereço do backend (VITE_API_URL). Troque pelo IP da sua máquina se ele mudar.'
+        required: true
+        default: 'http://10.0.0.34:5000'
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar plataforma Android 36
+        run: sdkmanager "platforms;android-36"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.11.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Build do app web
+        env:
+          # O .env não vai pro git, então a URL do backend entra aqui.
+          VITE_API_URL: ${{ github.event.inputs.api_url }}
+        run: pnpm build
+
+      - name: Sincronizar Capacitor
+        run: pnpm exec cap sync android
+
+      - name: Compilar APK (debug)
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Publicar APK como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: heychef-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
