@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './contexts/AuthContext';
 import { AppRoutes } from './routes/AppRoutes';
+import { InstallPrompt } from './components/InstallPrompt';
 // Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,6 +21,7 @@ export function App() {
       <AuthProvider>
         <BrowserRouter>
           <AppRoutes />
+          <InstallPrompt />
           <Toaster position="top-right" richColors closeButton theme="light" />
         </BrowserRouter>
       </AuthProvider>

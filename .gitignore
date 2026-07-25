@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 *.env
+# PWA dev output
+dev-dist
